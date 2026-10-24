@@ -305,8 +305,57 @@ The selected 3,000 HVGs will be used in subsequent dimensionality reduction and 
 ### Step 5. Data Scaling
 <a id="top"></a>
 
-### Optional: SCTransform
+Data scaling was performed to standardize gene expression values across cells, preventing highly expressed genes from disproportionately influencing downstream analyses.
+
+Seurat's `ScaleData()` function was applied to the selected highly variable genes (HVGs), centering and scaling each gene to approximately zero mean and unit variance.
+
+```r
+# Scale the selected highly variable genes
+seurat <- ScaleData(seurat)
+```
+
+**Results and Interpretation**
+
+The scaled expression values are stored in the `scale.data` layer of the RNA assay and will be used for principal component analysis (PCA).
+
+Scaling ensures that genes with different expression levels contribute more comparably to dimensionality reduction and subsequent clustering.
+
+**Optional: Regression of Unwanted Variation**
+
+Technical factors, such as the number of detected genes (`nFeature_RNA`) and mitochondrial percentage (`percent.mt`), can be regressed out if they strongly influence the observed cellular variation.
+
+```r
+# Optional: Scale data with regression
+seurat <- ScaleData(
+  seurat,
+  vars.to.regress = c("nFeature_RNA", "percent.mt")
+)
+```
+
+However, regression was not applied in the initial analysis to avoid potentially removing biologically relevant variation.
+
+---
+
+### Optional: SCTransform Normalization
 <a id="top"></a>
+
+[SCTransform](https://satijalab.org/seurat/articles/sctransform_vignette) provides an alternative preprocessing approach based on regularized negative binomial regression.
+
+Unlike the standard LogNormalize workflow, SCTransform combines normalization, variance stabilization, and highly variable feature selection into a single procedure.
+
+```r
+# Alternative preprocessing using SCTransform
+seurat_sct <- SCTransform(
+  seurat,
+  assay = "RNA",
+  variable.features.n = 3000,
+  verbose = FALSE
+)
+```
+
+**Note:** SCTransform is an alternative to Steps 3–5 and is not required when following the standard LogNormalize workflow. It uses raw RNA counts and generates an SCT assay for downstream analysis.
+
+
 
 ### Step 6. Principal Component Analysis (PCA)
 <a id="top"></a>
