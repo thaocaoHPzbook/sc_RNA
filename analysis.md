@@ -202,6 +202,48 @@ The relationship between `nCount_RNA` and `nFeature_RNA` reflects the associatio
 These distributions will guide the selection of appropriate filtering thresholds to remove potentially low-quality cells while retaining biologically relevant populations.
 
 
+#### 2.5. Filter Low-Quality Cells
+
+Based on the QC metrics, cells were filtered using the following criteria:
+
+- **`nFeature_RNA > 500`:** Remove cells with very few detected genes.
+- **`nFeature_RNA < 5000`:** Exclude cells with unusually high gene counts, which may represent doublets or multiplets.
+- **`percent.mt < 5`:** Remove cells with elevated mitochondrial gene expression, potentially indicating cellular stress or damage.
+
+```r
+# Number of cells before filtering
+n_cells_before <- ncol(seurat)
+
+# Filter cells based on QC thresholds
+seurat <- subset(
+  seurat,
+  subset = nFeature_RNA > 500 &
+           nFeature_RNA < 5000 &
+           percent.mt < 5
+)
+
+# Number of cells after filtering
+n_cells_after <- ncol(seurat)
+
+# Summarize filtering results
+data.frame(
+  Before_QC = n_cells_before,
+  After_QC = n_cells_after,
+  Removed = n_cells_before - n_cells_after,
+  Retained_Percent = round(
+    100 * n_cells_after / n_cells_before, 2
+  )
+)
+```
+
+**Interpretation**
+
+QC filtering removes cells that do not meet the selected quality thresholds. The remaining cells are retained for downstream analyses, including normalization, dimensionality reduction, and clustering.
+
+**Additional QC considerations**
+
+Filtering based on gene counts and mitochondrial percentages may not identify all doublets or damaged cells. Additional methods, such as [DoubletFinder](https://github.com/chris-mcginnis-ucsf/DoubletFinder), can be applied to detect potential doublets when necessary.
+
 ### Step 3. Normalization
 <a id="top"></a>
 
