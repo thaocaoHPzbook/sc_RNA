@@ -1457,6 +1457,58 @@ These annotations provide an overview of the cellular composition of the cerebra
 
 The annotated identities will be used for downstream analyses of cellular differentiation and developmental trajectories.
 
+### Step 10. Pseudotemporal Cell Ordering
+
+Pseudotime analysis was performed to investigate potential developmental trajectories among dorsal telencephalic cell populations.
+
+Based on the previous cell type annotation, clusters 0, 2, 5, 6, and 10 were considered potential dorsal telencephalic populations, including neural progenitors, intermediate progenitors, and differentiated neurons.
+
+These populations may represent different stages of neuronal differentiation. To explore this possibility, diffusion-based trajectory analysis was performed using the [destiny](https://bioconductor.org/packages/destiny/) R package.
+
+#### 10.1. Subset Dorsal Telencephalic Cells
+
+Cells belonging to the selected dorsal telencephalic clusters were extracted for subsequent trajectory analysis.
+
+```r
+# Subset dorsal telencephalic cell populations
+seurat_dorsal <- subset(
+  seurat,
+  subset = seurat_clusters %in% c(0, 2, 5, 6, 10)
+)
+
+# Inspect the subset
+seurat_dorsal
+
+# Count cells in each original cluster
+table(seurat_dorsal$seurat_clusters)
+```
+
+#### 10.2. Re-identify Highly Variable Genes
+
+Highly variable genes were re-identified within the selected dorsal telencephalic populations.
+
+This step focuses feature selection on transcriptional variation among the selected cells rather than differences between unrelated cell populations.
+
+```r
+# Identify highly variable genes in the subset
+seurat_dorsal <- FindVariableFeatures(
+  seurat_dorsal,
+  selection.method = "vst",
+  nfeatures = 3000
+)
+
+# Examine the selected features
+head(VariableFeatures(seurat_dorsal), 20)
+```
+
+**Results and Interpretation**
+
+The subset contains dorsal telencephalic populations selected for investigating potential neuronal differentiation trajectories.
+
+Re-identifying highly variable genes allows subsequent analyses to focus on transcriptional differences within these populations, potentially capturing variation associated with progenitor states, neuronal differentiation, and maturation.
+
+These selected cells will be used for diffusion map construction and pseudotime inference.
+
 
 ### Step 10. Pseudotime Analysis
 <a id="top"></a>
