@@ -712,6 +712,122 @@ However, computational clusters do not necessarily correspond directly to biolog
 ### Step 9. Cell Type Annotation
 <a id="top"></a>
 
+Cell type annotation was performed by examining the expression of canonical marker genes across the identified clusters.
+
+Marker genes associated with neural progenitors, neuronal differentiation, and regional identities of the developing brain were selected to characterize cellular populations in the human cerebral organoid dataset.
+
+#### 9.1. Select Canonical Marker Genes
+
+A panel of established neural and developmental markers was selected to examine potential cell identities across clusters.
+
+```r
+# Define canonical cell type markers
+ct_markers <- c(
+  # Proliferation, neural progenitors, and neurons
+  "MKI67", "NES", "DCX", "FOXG1",
+
+  # Ventral telencephalon
+  "DLX2", "DLX5", "ISL1", "SIX3",
+  "NKX2-1", "SOX6", "NR2F2",
+
+  # Dorsal telencephalon
+  "EMX1", "PAX6", "GLI3",
+  "EOMES", "NEUROD6",
+
+  # Other brain regions and neuronal populations
+  "RSPO3", "OTX2", "LHX9",
+  "TFAP2A", "RELN", "HOXB2", "HOXB5"
+)
+
+# Check marker availability
+available_markers <- intersect(
+  ct_markers,
+  rownames(seurat)
+)
+
+# Identify missing markers
+missing_markers <- setdiff(
+  ct_markers,
+  available_markers
+)
+
+print(missing_markers)
+```
+
+#### 9.2. Visualize Marker Expression Across Clusters
+
+A heatmap was generated to examine the expression patterns of canonical markers across the identified cell clusters.
+
+```r
+library(ggplot2)
+
+# Ensure selected markers are scaled
+seurat <- ScaleData(
+  seurat,
+  features = unique(c(
+    VariableFeatures(seurat),
+    available_markers
+  )),
+  verbose = FALSE
+)
+
+# Set figure dimensions
+options(repr.plot.width = 16, repr.plot.height = 9)
+
+# Visualize marker expression
+DoHeatmap(
+  seurat,
+  features = available_markers,
+  group.by = "seurat_clusters",
+  size = 4
+) +
+  scale_fill_gradient2(
+    low = "#0973b5",
+    mid = "#f6f9f6",
+    high = "#d32a46",
+    midpoint = 0,
+    limits = c(-2.5, 2.5),
+    name = "Expression"
+  ) +
+  theme(
+    axis.text.y = element_text(
+      size = 11,
+      face = "italic"
+    ),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9)
+  )
+```
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/89f1426a-d9d2-4ea4-9554-96b71b1f3807" />
+
+
+#### 9.3. Biological Interpretation
+
+The heatmap displays the relative expression of selected marker genes across cell clusters.
+
+| Marker genes | Potential biological identity |
+|---|---|
+| MKI67 | Proliferating cells |
+| NES, PAX6 | Neural progenitor populations |
+| DCX | Immature neurons |
+| FOXG1 | Telencephalic populations |
+| DLX2, DLX5, NKX2-1 | Ventral telencephalic populations |
+| EMX1, EOMES, NEUROD6 | Dorsal telencephalic and cortical populations |
+| RSPO3, OTX2, LHX9 | Diencephalic or midbrain-associated populations |
+| RELN | Cajal–Retzius-associated populations |
+| HOXB2, HOXB5 | Hindbrain-associated populations |
+
+**Results and Interpretation**
+
+The expression patterns of canonical markers provide preliminary evidence for the biological identities of individual cell clusters.
+
+Clusters showing coordinated expression of neural progenitor markers may represent progenitor populations, whereas clusters enriched for neuronal differentiation markers may correspond to more differentiated neuronal states.
+
+Cell type annotation should be based on combinations of markers rather than individual genes, as many markers are shared across multiple cell populations.
+
+These results provide a foundation for further annotation using cluster-specific differentially expressed genes and reference-based approaches.
+
+
 ### Step 10. Pseudotime Analysis
 <a id="top"></a>
 
