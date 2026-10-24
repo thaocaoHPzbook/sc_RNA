@@ -2336,11 +2336,127 @@ Harmony-corrected embeddings provide an alternative representation of the merged
 ### Step 3. Comparison of Integration Methods
 <a id="top"></a>
 
-## Part 3. Reference-based Cell Type Annotation
-<a id="top"></a>
+## Part 3. Reference-Based Cell Type Annotation
 
-### Step 0. Load Reference and Query Datasets
-<a id="top"></a>
+Cell type annotation is an essential step in scRNA-seq analysis. Although marker-based annotation can identify major cell populations, assigning accurate cell identities may be challenging when closely related cell types share similar transcriptional signatures.
+
+Reference-based annotation provides an alternative approach by comparing the gene expression profiles of a query dataset with an existing, well-annotated reference.
+
+In this section, the **Seurat CCA-integrated dataset (DS1 + DS2)** was used as the query, while a previously annotated scRNA-seq dataset was used as the reference.
+
+The objective is to investigate how existing reference annotations can facilitate the identification of cell types in the query dataset.
+
+### Step 0. Load and Explore Reference Data
+
+**1. Load Query and Reference Datasets**
+
+The Seurat-integrated dataset was loaded as the query, together with the annotated reference dataset provided in the original tutorial.
+
+```r
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+
+# Load query dataset (Seurat CCA integration)
+seurat_query <- readRDS("integrated_seurat.rds")
+
+# Load annotated reference dataset
+seurat_ref <- readRDS("ref_seurat_obj.rds")
+
+# Examine Seurat objects
+seurat_query
+seurat_ref
+```
+
+**2. Examine Reference Annotations**
+
+The metadata of the reference dataset was examined to identify existing cell type annotations and developmental classifications.
+
+```r
+# Available metadata columns
+colnames(seurat_ref[[]])
+
+# Cell counts by annotated cell type
+table(seurat_ref$celltype)
+
+# Cell counts by developmental branch
+table(seurat_ref$branch)
+```
+<img width="1618" height="334" alt="image" src="https://github.com/user-attachments/assets/c3c093a7-fcba-4cf6-817b-47853c07285c" />
+<img width="752" height="862" alt="image" src="https://github.com/user-attachments/assets/3845edc3-15b1-4771-b4ec-b6ba71ae8b7c" />
+
+The `celltype` and `branch` metadata provide existing biological annotations that can be used to characterize the reference populations.
+
+**3. Visualize Reference Cell Populations**
+
+UMAP visualizations were generated to examine the distribution of cells according to developmental branches and annotated cell types.
+
+```r
+# Reference UMAP colored by developmental branch
+plot1 <- DimPlot(
+  seurat_ref,
+  reduction = "umap",
+  group.by = "branch"
+) +
+  ggtitle("Reference: branch")
+
+# Reference UMAP colored by cell type
+plot2 <- DimPlot(
+  seurat_ref,
+  reduction = "umap",
+  group.by = "celltype"
+) +
+  ggtitle("Reference: cell type")
+
+# Display annotation plots
+options(repr.plot.width = 14, repr.plot.height = 5)
+
+print(plot1 | plot2)
+```
+<img width="1680" height="600" alt="image" src="https://github.com/user-attachments/assets/be0311c6-52b6-42d8-9515-d990a0697974" />
+
+**4. Examine Developmental Marker Expression**
+
+The expression of representative neural developmental markers was examined to assess the biological characteristics of the annotated reference populations.
+
+```r
+# Use original RNA expression
+DefaultAssay(seurat_ref) <- "RNA"
+
+# Visualize developmental markers
+plot3 <- FeaturePlot(
+  seurat_ref,
+  features = c(
+    "SOX2", "DCX", "FOXG1",
+    "EMX1", "DLX2", "LHX9"
+  ),
+  reduction = "umap",
+  ncol = 3,
+  pt.size = 0.1,
+  order = TRUE,
+  cols = c("#E5E5E5", "#8B75C9")
+)
+
+# Display marker expression
+options(repr.plot.width = 14, repr.plot.height = 8)
+
+print(plot3)
+```
+<img width="1680" height="960" alt="image" src="https://github.com/user-attachments/assets/c3d92ffe-b7ce-4d27-a02e-b5d9d7757321" />
+
+**Results and Interpretation**
+
+The reference dataset was examined to characterize its annotated cellular populations and developmental organization.
+
+UMAP visualizations were used to investigate:
+
+- **Developmental branches:** The distribution of cells across annotated developmental lineages.
+- **Cell type annotations:** The organization of previously identified cell populations.
+- **Marker expression:** The correspondence between annotated populations and established neural developmental markers.
+
+The expression of SOX2, DCX, FOXG1, EMX1, DLX2, and LHX9 provides additional biological context for evaluating reference cell identities.
+
+These analyses establish the reference dataset for subsequent transcriptomic similarity analysis and reference-based cell type annotation. 
 
 ### Method 1. Transcriptome Similarity
 <a id="top"></a>
@@ -2364,12 +2480,11 @@ Harmony-corrected embeddings provide an alternative representation of the merged
 <a id="top"></a>
 
 ### 4.3 RNA Velocity Analysis
-<a id="top"></a>
 
 ### 4.4 Trajectory Analysis with CellRank
-<a id="top"></a>
+
 
 ### 4.5 Cell–Cell Communication Analysis
-<a id="top"></a>
+
 
 
