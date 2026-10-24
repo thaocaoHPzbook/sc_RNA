@@ -360,6 +360,121 @@ seurat_sct <- SCTransform(
 ### Step 6. Principal Component Analysis (PCA)
 <a id="top"></a>
 
+Principal component analysis (PCA) was performed on the scaled highly variable genes to reduce data dimensionality while preserving major patterns of variation across cells.
+
+PCA summarizes correlated gene expression patterns into principal components (PCs), providing a lower-dimensional representation of cellular heterogeneity for downstream clustering and visualization.
+
+#### 6.1. Run PCA
+
+The first 50 principal components were calculated using Seurat's `RunPCA()` function.
+
+```r
+# Perform PCA using highly variable genes
+seurat <- RunPCA(
+  seurat,
+  npcs = 50
+)
+
+# Examine genes contributing to the first PCs
+print(
+  seurat[["pca"]],
+  dims = 1:5,
+  nfeatures = 5
+)
+```
+
+#### 6.2. Determine the Number of Principal Components
+
+An elbow plot was generated to examine the standard deviation associated with each principal component and guide the selection of PCs for downstream analyses.
+
+```r
+# Visualize the first 50 principal components
+ElbowPlot(
+  seurat,
+  ndims = 50
+)
+```
+
+**Interpretation**
+
+The elbow plot shows how the standard deviation decreases across successive PCs.
+
+- **Early PCs:** Capture the largest sources of variation in gene expression.
+- **Later PCs:** Explain progressively smaller amounts of variation.
+- **Elbow point:** Indicates where the decrease becomes less pronounced, providing a heuristic for selecting PCs.
+
+The final number of PCs should be determined by considering both the elbow plot and the biological relevance of the variation captured by individual components.
+
+#### 6.3. Visualize PCA Gene Contributions
+
+PCA heatmaps were generated to examine genes contributing to each principal component and explore the underlying sources of cellular heterogeneity.
+
+The first 20 PCs were visualized in groups of four, displaying 20 contributing genes and 500 selected cells per heatmap.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+options(repr.plot.width = 8, repr.plot.height = 8)
+
+# Visualize PC1–PC20 in groups of four
+for (start in seq(1, 17, by = 4)) {
+
+  p <- PCHeatmap(
+    seurat,
+    dims = start:(start + 3),
+    nfeatures = 20,
+    cells = 500,
+    balanced = TRUE,
+    ncol = 2,
+    fast = FALSE
+  )
+
+  # Customize heatmap colors and appearance
+  p <- p &
+    scale_fill_gradient2(
+      low = "#58a0cc",
+      mid = "#FFFFFF",
+      high = "#db1738",
+      midpoint = 0,
+      limits = c(-2.5, 2.5),
+      name = "Expression"
+    ) &
+    theme(
+      plot.title = element_text(
+        size = 14,
+        face = "bold"
+      ),
+      axis.text.y = element_text(size = 10),
+      axis.text.x = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title = element_blank()
+    )
+
+  print(p)
+}
+```
+
+**Interpretation**
+
+PCA heatmaps display patterns of scaled gene expression among cells ordered by their PC scores.
+
+- **Rows:** Genes contributing strongly to each PC.
+- **Columns:** Cells ordered according to their PCA scores.
+- **Colors:** Relative scaled gene expression levels.
+- **Gene patterns:** Groups of genes with coordinated expression may reflect distinct biological processes or cellular populations.
+
+Examining the gene contributions helps assess whether individual PCs capture biologically meaningful variation and supports the selection of PCs for downstream clustering.
+
+
+<img width="960" height="960" alt="image" src="https://github.com/user-attachments/assets/d518d6bf-fa8b-4dcc-b3d6-be7b29791d93" />
+<img width="960" height="960" alt="image" src="https://github.com/user-attachments/assets/335d69a5-1274-42df-99f7-4eebb2c336ff" />
+<img width="960" height="960" alt="image" src="https://github.com/user-attachments/assets/33ce75b2-f1da-4cea-b8ab-844034ddb116" />
+<img width="960" height="960" alt="image" src="https://github.com/user-attachments/assets/f97869bd-a289-4877-81d7-7bd92616b638" />
+<img width="960" height="960" alt="image" src="https://github.com/user-attachments/assets/3107b7ea-02b8-44ee-aff2-ba47fed2770b" />
+
+
+
 ### Step 7. Non-linear Dimensionality Reduction
 <a id="top"></a>
 
