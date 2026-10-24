@@ -682,6 +682,8 @@ plot2 <- DimPlot(
 # Display plots side by side
 plot1 + plot2
 ```
+<img width="1440" height="720" alt="image" src="https://github.com/user-attachments/assets/2ef322ff-fa0f-41ae-9a37-f342f6f6b9fd" />
+
 
 #### 8.4. Examine Cluster Distribution
 
@@ -691,6 +693,7 @@ The number of cells assigned to each cluster was calculated to examine cluster s
 # Count cells in each cluster
 table(Idents(seurat))
 ```
+<img width="1194" height="112" alt="image" src="https://github.com/user-attachments/assets/33b823a0-e234-4145-8369-ce23d63cc59d" />
 
 **Results and Interpretation**
 
