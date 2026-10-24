@@ -114,7 +114,6 @@ These metrics provide an initial overview of sequencing depth and gene detection
 ### Step 2. Quality Control
 <a id="top"></a>
 
-### Step 2. Quality Control
 
 Quality control (QC) was performed to identify potentially low-quality cells and doublets before downstream analysis. Three key metrics were examined:
 
@@ -144,17 +143,19 @@ head(is_spike)
 head(is_mito)
 head(is_ribo)
 ```
+![Uploading image.png…]()
 
-#### 2.2. Calculate Mitochondrial Percentage
+
+#### 2.2. Calculate Mitochondrial, Spike, and Ribosome RNA Percentages
 
 The proportion of mitochondrial gene counts was calculated for each cell using `PercentageFeatureSet()`.
 
 ```r
-seurat[["percent.mt"]] <- PercentageFeatureSet(
-  seurat,
-  pattern = "^MT-"
-)
+seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^MT-")
+seurat[["percent.ercc"]] <- PercentageFeatureSet(seurat, pattern = "^ERCC")
+seurat[["percent.ribo"]] <- PercentageFeatureSet(seurat, pattern = "^RP[LS]")
 ```
+<img width="1370" height="448" alt="image" src="https://github.com/user-attachments/assets/0731b8d5-32dd-44d6-bf21-da4854e91995" />
 
 #### 2.3. Visualize QC Metrics
 
@@ -168,6 +169,8 @@ VlnPlot(
   pt.size = 0
 )
 ```
+<img width="1440" height="1200" alt="image" src="https://github.com/user-attachments/assets/a222af21-8cd4-4c8d-a31d-fe5cd0005397" />
+
 
 #### 2.4. Examine Relationships Between QC Metrics
 
@@ -190,6 +193,7 @@ plot2 <- FeatureScatter(
 
 plot1 + plot2
 ```
+<img width="1440" height="600" alt="image" src="https://github.com/user-attachments/assets/fe6ab457-0abc-4373-b211-3ce03479b078" />
 
 **Interpretation**
 
