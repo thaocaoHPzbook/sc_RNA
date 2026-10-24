@@ -143,7 +143,7 @@ head(is_spike)
 head(is_mito)
 head(is_ribo)
 ```
-![Uploading image.png…]()
+<img width="1418" height="432" alt="image" src="https://github.com/user-attachments/assets/d2344d68-8fcc-48a8-b376-385c1ce1ccd0" />
 
 
 #### 2.2. Calculate Mitochondrial, Spike, and Ribosome RNA Percentages
@@ -155,7 +155,8 @@ seurat[["percent.mt"]] <- PercentageFeatureSet(seurat, pattern = "^MT-")
 seurat[["percent.ercc"]] <- PercentageFeatureSet(seurat, pattern = "^ERCC")
 seurat[["percent.ribo"]] <- PercentageFeatureSet(seurat, pattern = "^RP[LS]")
 ```
-<img width="1370" height="448" alt="image" src="https://github.com/user-attachments/assets/0731b8d5-32dd-44d6-bf21-da4854e91995" />
+
+![Uploading image.png…]()
 
 #### 2.3. Visualize QC Metrics
 
@@ -200,7 +201,6 @@ plot1 + plot2
 The relationship between `nCount_RNA` and `nFeature_RNA` reflects the association between sequencing depth and gene detection. Mitochondrial percentages provide an additional indicator of potential cellular stress or damage.
 
 These distributions will guide the selection of appropriate filtering thresholds to remove potentially low-quality cells while retaining biologically relevant populations.
-
 
 
 ### Step 3. Normalization
