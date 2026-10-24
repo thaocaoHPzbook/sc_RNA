@@ -56,6 +56,10 @@ The analyses begin with preprocessed gene expression count matrices generated us
 
 ## Part 1. Basic scRNA-seq Data Analysis
 <a id="top"></a>
+The gene expression count matrix from dataset DS1 was imported using `Read10X()`. A Seurat object was then created using `CreateSeuratObject()` to store the expression data and associated cell metadata for downstream analysis.
+
+```r
+library(Seurat)
 
 ### Step 0. Import Seurat Package
 <a id="top"></a>
