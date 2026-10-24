@@ -1368,6 +1368,7 @@ options(repr.plot.width = 14, repr.plot.height = 10)
 
 voxhunt::plot_map(vox_map)
 ```
+<img width="1680" height="1200" alt="image" src="https://github.com/user-attachments/assets/8adbd53d-d355-448a-b825-d599c9acc95b" />
 
 **Results and Interpretation**
 
@@ -1381,6 +1382,81 @@ VoxHunt generates spatial similarity maps between cerebral organoid cell cluster
 These results complement canonical marker analysis and help refine regional cell identity annotations.
 
 Because the reference is derived from mouse brain tissue, spatial similarities should be interpreted cautiously and considered alongside human neural marker expression.
+
+
+#### 9.11. Assign Cell Type Annotations
+
+Based on canonical marker expression, cluster-specific genes, and reference-based analysis, biological identities were assigned to the identified cell clusters.
+
+The original cluster identifiers were preserved in `seurat_clusters`, while the annotated cell identities were stored separately for downstream analyses.
+
+```r
+library(Seurat)
+
+# Restore original cluster identities
+Idents(seurat) <- "seurat_clusters"
+
+# Define cell type annotations
+new_ident <- c(
+  "0"  = "Dorsal telen. NPC",
+  "1"  = "Midbrain-hindbrain boundary neuron",
+  "2"  = "Dorsal telen. neuron",
+  "3"  = "Dien. and midbrain excitatory neuron",
+  "4"  = "MGE-like neuron",
+  "5"  = "G2M dorsal telen. NPC",
+  "6"  = "Dorsal telen. IP",
+  "7"  = "Dien. and midbrain NPC",
+  "8"  = "Dien. and midbrain IP and excitatory early neuron",
+  "9"  = "G2M Dien. and midbrain NPC",
+  "10" = "G2M dorsal telen. NPC",
+  "11" = "Dien. and midbrain inhibitory neuron",
+  "12" = "Dien. and midbrain IP and early inhibitory neuron",
+  "13" = "Ventral telen. neuron",
+  "14" = "Unknown 1",
+  "15" = "Unknown 2"
+)
+
+# Verify that all clusters have annotations
+stopifnot(
+  all(levels(seurat) %in% names(new_ident))
+)
+
+# Rename identities
+seurat <- do.call(
+  RenameIdents,
+  c(list(object = seurat), as.list(new_ident))
+)
+
+# Store annotations in metadata
+seurat$annotation_tutorial <- Idents(seurat)
+
+# Verify annotations
+table(seurat$annotation_tutorial)
+
+# Visualize annotated cell populations
+options(repr.plot.width = 16, repr.plot.height = 10)
+
+DimPlot(
+  seurat,
+  reduction = "umap",
+  label = TRUE,
+  repel = TRUE,
+  label.size = 3.5,
+  pt.size = 0.3
+) +
+  NoLegend()
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/dc616d31-7abb-47e9-8d9a-7d444445b396" />
+
+
+**Results and Interpretation**
+
+The UMAP visualization displays cell populations labeled according to their proposed biological identities rather than numerical cluster identifiers.
+
+These annotations provide an overview of the cellular composition of the cerebral organoid dataset, including neural progenitors, intermediate progenitors, and differentiated neuronal populations.
+
+The annotated identities will be used for downstream analyses of cellular differentiation and developmental trajectories.
+
 
 ### Step 10. Pseudotime Analysis
 <a id="top"></a>
