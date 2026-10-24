@@ -77,6 +77,12 @@ seurat <- CreateSeuratObject(
 seurat
 ```
 
+<img width="1094" height="186" alt="image" src="https://github.com/user-attachments/assets/006419a2-1dcc-4d2f-9591-f4d2301b4d51" />
+
+**Results**
+The DS1 dataset was successfully imported into Seurat, containing **33,694 genes across 4,672 cells** within a single RNA assay. The object retains the raw gene expression count matrix, which will be used for subsequent quality control, normalization, and downstream analyses.
+
+
 ### Step 1. Create a Seurat Object
 <a id="top"></a>
 
