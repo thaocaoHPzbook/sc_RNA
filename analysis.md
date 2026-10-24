@@ -1314,6 +1314,74 @@ Although t-SNE and UMAP may display different spatial arrangements, the cluster 
 
 These findings provide an overview of cellular heterogeneity and establish a foundation for subsequent marker gene analysis and cell type annotation.
 
+#### 9.10. Reference-Based Annotation Using VoxHunt
+
+To further investigate the regional identities of cerebral organoid cell populations, transcriptomic profiles were compared with spatial gene expression patterns from the developing mouse brain using [VoxHunt](https://github.com/quadbio/VoxHunt).
+
+VoxHunt calculates transcriptomic similarities between single-cell or cluster-level expression profiles and in situ hybridization data from the Allen Brain Atlas.
+
+**1. Load Reference Data**
+
+```r
+library(voxhunt)
+
+# Load the downloaded Allen Brain Atlas data
+load_aba_data("path/to/ABA_data/voxhunt_data")
+
+# Select 300 highly variable genes from the E13.5 atlas
+genes_use <- variable_genes("E13", 300)$gene
+```
+
+**2. Prepare Expression Data**
+
+The log-normalized RNA expression matrix and cluster assignments were extracted from the Seurat object.
+
+```r
+# Extract normalized RNA expression
+expr <- SeuratObject::GetAssayData(
+  seurat,
+  assay = "RNA",
+  layer = "data"
+)
+
+# Extract cluster assignments in cell order
+groups <- seurat[[]][
+  colnames(expr),
+  "seurat_clusters"
+]
+```
+
+**3. Map Cell Clusters to the Reference Atlas**
+
+```r
+# Perform reference-based spatial mapping
+vox_map <- voxhunt::voxel_map(
+  object = Matrix::t(expr),
+  stage = "E13",
+  groups = groups,
+  genes_use = genes_use,
+  pseudobulk_groups = TRUE
+)
+
+# Visualize spatial similarity maps
+options(repr.plot.width = 14, repr.plot.height = 10)
+
+voxhunt::plot_map(vox_map)
+```
+
+**Results and Interpretation**
+
+VoxHunt generates spatial similarity maps between cerebral organoid cell clusters and developing mouse brain regions.
+
+- **Reference:** Allen Brain Atlas, embryonic mouse brain (E13.5).
+- **Gene selection:** 300 variable genes from the reference atlas.
+- **Mapping approach:** Transcriptomic correlation between cluster-level expression profiles and spatial reference patterns.
+- **Biological interpretation:** Regions showing greater transcriptomic similarity provide supporting evidence for potential regional identities of organoid cell populations.
+
+These results complement canonical marker analysis and help refine regional cell identity annotations.
+
+Because the reference is derived from mouse brain tissue, spatial similarities should be interpreted cautiously and considered alongside human neural marker expression.
+
 ### Step 10. Pseudotime Analysis
 <a id="top"></a>
 
