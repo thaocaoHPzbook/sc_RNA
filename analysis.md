@@ -83,6 +83,30 @@ seurat
 The DS1 dataset was successfully imported into Seurat, containing **33,694 genes across 4,672 cells** within a single RNA assay. The object retains the raw gene expression count matrix, which will be used for subsequent quality control, normalization, and downstream analyses.
 
 
+### Inspect Cell Metadata
+
+The metadata of the first cells can be examined using:
+
+```r
+head(seurat)
+```
+
+<img width="996" height="666" alt="image" src="https://github.com/user-attachments/assets/271c7465-3d7a-4d76-842d-e36da86d4535" />
+
+**Results**
+
+The output displays cell-level metadata, including:
+
+- **Cell barcode:** A unique identifier for each cell.
+- **`orig.ident`:** The dataset or sample identifier (DS1).
+- **`nCount_RNA`:** The total number of UMI counts detected in each cell.
+- **`nFeature_RNA`:** The number of unique genes detected in each cell (genes with non-zero counts).
+
+For example, the first cell contains **16,752 UMI counts across 3,287 detected genes**.
+
+These metrics provide an initial overview of sequencing depth and gene detection per cell and are used in subsequent quality control to identify potentially low-quality cells.
+
+
 ### Step 1. Create a Seurat Object
 <a id="top"></a>
 
