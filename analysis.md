@@ -619,6 +619,92 @@ These observations will support subsequent cell clustering and biological annota
 ### Step 8. Cell Clustering
 <a id="top"></a>
 
+Graph-based clustering was performed to identify transcriptionally distinct cell populations based on their gene expression profiles.
+
+Seurat constructs a Shared Nearest Neighbor (SNN) graph using PCA embeddings and applies a community detection algorithm to identify groups of cells with similar transcriptional characteristics.
+
+#### 8.1. Construct the Nearest Neighbor Graph
+
+The first 20 principal components were used to construct a cell–cell nearest neighbor graph.
+
+```r
+# Construct the nearest neighbor graph
+seurat <- FindNeighbors(
+  seurat,
+  dims = 1:20
+)
+```
+
+#### 8.2. Identify Cell Clusters
+
+Graph-based clustering was performed using the Louvain algorithm with a resolution of 1.0.
+
+```r
+# Perform graph-based clustering
+seurat <- FindClusters(
+  seurat,
+  resolution = 1.0
+)
+```
+
+The `resolution` parameter controls clustering granularity:
+
+- **Lower resolution:** Produces fewer, larger clusters.
+- **Higher resolution:** Produces more, smaller clusters.
+
+A resolution of 1.0 was used to explore finer cellular heterogeneity.
+
+#### 8.3. Visualize Cell Clusters
+
+The identified clusters were visualized using the previously generated t-SNE and UMAP embeddings.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+# Set figure dimensions
+options(repr.plot.width = 12, repr.plot.height = 6)
+
+# t-SNE clustering visualization
+plot1 <- DimPlot(
+  seurat,
+  reduction = "tsne",
+  label = TRUE
+) + ggtitle("t-SNE")
+
+# UMAP clustering visualization
+plot2 <- DimPlot(
+  seurat,
+  reduction = "umap",
+  label = TRUE
+) + ggtitle("UMAP")
+
+# Display plots side by side
+plot1 + plot2
+```
+
+#### 8.4. Examine Cluster Distribution
+
+The number of cells assigned to each cluster was calculated to examine cluster sizes.
+
+```r
+# Count cells in each cluster
+table(Idents(seurat))
+```
+
+**Results and Interpretation**
+
+Graph-based clustering identifies groups of cells with similar transcriptomic profiles.
+
+- **Each point:** Represents an individual cell.
+- **Colors:** Indicate different clusters.
+- **Cluster labels:** Represent cluster identities assigned by Seurat.
+- **Cluster sizes:** Indicate the number of cells assigned to each cluster.
+
+The resulting clusters provide a basis for identifying distinct cell populations and exploring cellular heterogeneity.
+
+However, computational clusters do not necessarily correspond directly to biological cell types. Further characterization using differentially expressed genes and canonical cell type markers is required for biological annotation.
+
 
 ### Step 9. Cell Type Annotation
 <a id="top"></a>
