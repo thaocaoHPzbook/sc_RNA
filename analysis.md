@@ -1072,6 +1072,82 @@ The resulting marker lists can be used to:
 
 The selected markers provide additional evidence for characterizing cellular heterogeneity in the cerebral organoid dataset.
 
+
+#### 9.8. Visualize Presto-Derived Marker Genes
+
+A heatmap was generated to visualize the expression patterns of the top 10 marker genes identified by Presto for each cell cluster.
+
+Marker genes were selected based on their log fold-change values and scaled separately for visualization while preserving the original Seurat object.
+
+```r
+library(ggplot2)
+
+# Extract unique marker genes from Presto results
+genes_plot_presto <- unique(
+  top10_markers_presto$feature
+)
+
+# Scale selected genes in a separate Seurat object
+seurat_heatmap_presto <- ScaleData(
+  seurat,
+  assay = "RNA",
+  features = genes_plot_presto,
+  verbose = FALSE
+)
+
+# Set figure dimensions
+options(
+  repr.plot.width = 16,
+  repr.plot.height = max(
+    8,
+    length(genes_plot_presto) * 0.18
+  )
+)
+
+# Generate marker expression heatmap
+heatmap_presto <- DoHeatmap(
+  seurat_heatmap_presto,
+  assay = "RNA",
+  features = genes_plot_presto,
+  slot = "scale.data",
+  size = 4
+) +
+  scale_fill_gradient2(
+    low = "#0887e1",
+    mid = "#FFFFFF",
+    high = "#e01339",
+    midpoint = 0,
+    limits = c(-2.5, 2.5),
+    oob = scales::squish,
+    name = "Scaled\nexpression"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+# Display heatmap
+print(heatmap_presto)
+```
+<img width="1920" height="1987" alt="image" src="https://github.com/user-attachments/assets/dce7fa3f-7ad1-414b-bd83-a48bafbfb79c" />
+
+
+**Results and Interpretation**
+
+The heatmap illustrates the expression patterns of the top marker genes identified using Presto across cell clusters.
+
+- **Rows:** Marker genes selected from the Presto differential expression results.
+- **Columns:** Individual cells grouped by cluster identity.
+- **Red:** Higher relative scaled expression.
+- **Blue:** Lower relative scaled expression.
+- **Cluster-specific patterns:** Genes preferentially expressed in particular cell populations.
+
+These expression patterns provide additional information for identifying transcriptionally distinct cell populations and supporting subsequent biological annotation.
+
+The Presto-derived markers can also be compared with those identified using Seurat's `FindAllMarkers()` to examine similarities and differences between the two marker discovery approaches.
+
+
 ### Step 10. Pseudotime Analysis
 <a id="top"></a>
 
