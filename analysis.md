@@ -1618,6 +1618,160 @@ Distinct or gradually changing expression patterns across the UMAP may suggest t
 These observations provide a preliminary basis for subsequent diffusion map and pseudotime analyses.
 
 
+#### 10.5. Cell Cycle Regression
+
+Although cell cycle-associated genes were excluded from the highly variable features, residual cell cycle-related variation may still influence the organization of dorsal telencephalic populations.
+
+To further reduce this effect, cell cycle scores were calculated for individual cells and regressed out during data scaling.
+
+**1. Calculate Cell Cycle Scores**
+
+Seurat's `CellCycleScoring()` function was used to estimate S-phase and G2/M-phase scores based on established cell cycle marker genes.
+
+```r
+# Calculate cell cycle scores
+seurat_dorsal <- CellCycleScoring(
+  seurat_dorsal,
+  s.features = cc.genes$s.genes,
+  g2m.features = cc.genes$g2m.genes,
+  set.ident = FALSE
+)
+
+# Examine cell cycle scores
+head(
+  seurat_dorsal[[]][
+    , c("S.Score", "G2M.Score", "Phase")
+  ]
+)
+```
+
+**2. Regress Out Cell Cycle Effects**
+
+The calculated cell cycle scores were included as covariates during scaling to reduce their linear contribution to gene expression variation.
+
+```r
+# Scale data while regressing out cell cycle scores
+seurat_dorsal <- ScaleData(
+  seurat_dorsal,
+  vars.to.regress = c("S.Score", "G2M.Score")
+)
+```
+
+**3. Recompute PCA and UMAP**
+
+PCA and UMAP were recalculated using the cell cycle-adjusted expression data.
+
+```r
+# Recompute PCA
+seurat_dorsal <- RunPCA(
+  seurat_dorsal,
+  npcs = 50
+)
+
+# Recompute UMAP
+seurat_dorsal <- RunUMAP(
+  seurat_dorsal,
+  dims = 1:20
+)
+```
+
+**4. Examine Developmental Markers**
+
+```r
+# Set figure dimensions
+options(repr.plot.width = 18, repr.plot.height = 4)
+
+# Visualize developmental marker expression
+FeaturePlot(
+  seurat_dorsal,
+  features = c("MKI67", "GLI3", "EOMES", "NEUROD6"),
+  reduction = "umap",
+  ncol = 4
+)
+```
+
+**Results and Interpretation**
+
+Cell cycle regression was applied to reduce variation associated with S-phase and G2/M-phase activity.
+
+The updated UMAP provides a representation of dorsal telencephalic populations after accounting for these cell cycle-related effects.
+
+Developmental marker expression was examined to assess whether the resulting organization is consistent with potential transitions between neural progenitors, intermediate progenitors, and differentiated neurons.
+
+---
+
+#### 10.6. Diffusion Map and Pseudotime Analysis
+
+Diffusion map analysis was performed using the [destiny](https://bioconductor.org/packages/destiny/) R package to investigate potential developmental relationships among dorsal telencephalic cell populations.
+
+Diffusion pseudotime (DPT) was then used to estimate the relative ordering of cells along the inferred transcriptional trajectory.
+
+**1. Construct the Diffusion Map**
+
+The first 20 principal components from the cell cycle-adjusted analysis were used as input.
+
+```r
+library(destiny)
+
+# Extract PCA embeddings
+pca_embeddings <- Embeddings(
+  seurat_dorsal,
+  "pca"
+)[, 1:20, drop = FALSE]
+
+# Construct diffusion map
+dm <- DiffusionMap(pca_embeddings)
+```
+<img width="1500" height="300" alt="image" src="https://github.com/user-attachments/assets/8d204ae5-6598-4a9c-8bbc-ac13d9c4e050" />
+
+**2. Calculate Diffusion Pseudotime**
+
+```r
+# Estimate diffusion pseudotime
+dpt <- DPT(dm)
+
+# Convert pseudotime to ranks
+dpt_rank <- rank(dpt$dpt)
+
+# Match pseudotime values to cell identifiers
+names(dpt_rank) <- rownames(pca_embeddings)
+
+# Store pseudotime in Seurat metadata
+seurat_dorsal$dpt <- dpt_rank[
+  colnames(seurat_dorsal)
+]
+```
+
+**3. Visualize Pseudotime and Developmental Markers**
+
+```r
+# Set figure dimensions
+options(repr.plot.width = 18, repr.plot.height = 4)
+
+# Visualize pseudotime and marker expression
+FeaturePlot(
+  seurat_dorsal,
+  features = c("dpt", "GLI3", "EOMES", "NEUROD6"),
+  reduction = "umap",
+  ncol = 4
+)
+```
+<img width="1500" height="300" alt="image" src="https://github.com/user-attachments/assets/7c109271-5408-4684-a941-3441a771309f" />
+
+**Results and Interpretation**
+
+Diffusion map analysis provides a representation of transcriptional relationships among the selected dorsal telencephalic populations.
+
+Diffusion pseudotime assigns a relative position to each cell along the inferred trajectory.
+
+- **Early pseudotime:** Cells closer to the selected computational starting point.
+- **Intermediate pseudotime:** Cells occupying intermediate positions along the trajectory.
+- **Late pseudotime:** Cells farther from the starting point.
+
+Expression patterns of GLI3, EOMES, and NEUROD6 were examined to evaluate whether the inferred ordering is consistent with potential transitions from neural progenitors to intermediate progenitors and differentiated neurons.
+
+The resulting pseudotime represents an inferred transcriptional ordering rather than actual developmental time.
+
 ### Step 11. Save Results
 <a id="top"></a>
 
