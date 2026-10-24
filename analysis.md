@@ -221,19 +221,6 @@ seurat <- subset(
            nFeature_RNA < 5000 &
            percent.mt < 5
 )
-
-# Number of cells after filtering
-n_cells_after <- ncol(seurat)
-
-# Summarize filtering results
-data.frame(
-  Before_QC = n_cells_before,
-  After_QC = n_cells_after,
-  Removed = n_cells_before - n_cells_after,
-  Retained_Percent = round(
-    100 * n_cells_after / n_cells_before, 2
-  )
-)
 ```
 
 **Interpretation**
