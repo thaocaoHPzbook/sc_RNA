@@ -233,6 +233,27 @@ Filtering based on gene counts and mitochondrial percentages may not identify al
 
 ### Step 3. Normalization
 <a id="top"></a>
+Gene expression data were normalized to account for differences in sequencing depth and total UMI counts across cells. Seurat's `NormalizeData()` function was applied using the default **LogNormalize** method.
+
+```r
+# Normalize gene expression data
+seurat <- NormalizeData(
+  seurat,
+  normalization.method = "LogNormalize",
+  scale.factor = 10000
+)
+```
+
+**Normalization procedure:**
+
+1. Divide each gene's UMI count by the total UMI counts in the corresponding cell.
+2. Multiply the normalized values by a scaling factor of 10,000.
+3. Apply a natural log transformation using `log1p()` to reduce the skewness of expression values.
+
+**Results**
+
+The normalized expression matrix is stored in the `data` layer of the RNA assay, while the original raw counts are retained in the `counts` layer. This allows gene expression levels to be compared more appropriately across cells in subsequent analyses.
+
 
 ### Step 4. Highly Variable Feature Selection
 <a id="top"></a>
