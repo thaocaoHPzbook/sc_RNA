@@ -1772,10 +1772,116 @@ Diffusion pseudotime assigns a relative position to each cell along the inferred
 Expression patterns of GLI3, EOMES, and NEUROD6 were examined to evaluate whether the inferred ordering is consistent with potential transitions from neural progenitors to intermediate progenitors and differentiated neurons.
 
 The resulting pseudotime represents an inferred transcriptional ordering rather than actual developmental time.
+#### 10.7. Gene Expression Dynamics Along Pseudotime
 
-### Step 11. Save Results
+To investigate transcriptional changes along the inferred developmental trajectory, the expression patterns of three representative genes (**GLI3, EOMES, and NEUROD6**) were examined across diffusion pseudotime.
+
+Log-normalized gene expression values were extracted from the Seurat object and plotted against pseudotime ranks. LOESS smoothing was applied to visualize overall expression trends.
+
+**Gene Expression Visualization**
+
+```r
+# Extract log-normalized RNA expression
+expr <- LayerData(
+  seurat_dorsal,
+  assay = "RNA",
+  layer = "data"
+)
+
+# Combine gene expression and pseudotime
+df <- data.frame(
+  dpt = seurat_dorsal[[]][colnames(expr), "dpt"],
+  GLI3 = as.numeric(expr["GLI3", ]),
+  EOMES = as.numeric(expr["EOMES", ]),
+  NEUROD6 = as.numeric(expr["NEUROD6", ])
+)
+
+# Convert to long format
+df_long <- tidyr::pivot_longer(
+  df,
+  cols = c(GLI3, EOMES, NEUROD6),
+  names_to = "gene",
+  values_to = "expression"
+)
+
+df_long$gene <- factor(
+  df_long$gene,
+  levels = c("GLI3", "EOMES", "NEUROD6")
+)
+
+# Plot gene expression dynamics
+options(repr.plot.width = 15, repr.plot.height = 5)
+
+ggplot(df_long, aes(x = dpt, y = expression)) +
+  geom_point(color = "#0a77ca", size = 0.8, alpha = 0.4) +
+  geom_smooth(
+    method = "loess",
+    formula = y ~ x,
+    se = FALSE,
+    color = "#d118ea",
+    linewidth = 1.2
+  ) +
+  facet_wrap(~ gene, ncol = 3) +
+  labs(
+    x = "Pseudotime (DPT rank)",
+    y = "Normalized expression"
+  ) +
+  theme_bw(base_size = 14) +
+  theme(
+    strip.background = element_rect(fill = "#EEE7F2", color = NA),
+    strip.text = element_text(face = "bold", size = 16),
+    panel.grid.minor = element_blank()
+  )
+```
+<img width="1800" height="600" alt="image" src="https://github.com/user-attachments/assets/569967fa-20bd-4476-b023-f7a097c80aaf" />
+
+**Results and Interpretation**
+
+Gene expression dynamics were examined to assess potential transcriptional changes associated with neuronal differentiation.
+
+- **GLI3:** Associated with neural progenitor identity and developmental patterning.
+- **EOMES:** Marks intermediate progenitor populations during cortical development.
+- **NEUROD6:** Associated with neuronal differentiation and maturation.
+
+The smoothed expression profiles can help evaluate whether the inferred pseudotime is consistent with the expected transition from neural progenitors through intermediate progenitors to differentiated neurons.
+
+**Note:** Pseudotime direction depends on the selected root cell. Therefore, the inferred ordering should be validated against established developmental markers before assigning early and late differentiation states.
+
+
+### Step 11. Save the Results
 <a id="top"></a>
 
+The final Seurat objects were saved in RDS format to preserve the processed expression data, metadata, dimensionality reductions, clustering results, and cell annotations for future analysis.
+
+Two objects were saved:
+
+- **seurat_obj_all.rds:** Complete scRNA-seq dataset after preprocessing, clustering, and cell type annotation.
+- **seurat_obj_dorsal.rds:** Subset of dorsal telencephalic cells used for cell cycle regression and pseudotime analysis.
+
+**Save Seurat Objects**
+
+```r
+# Create output directory
+dir.create("DS1", showWarnings = FALSE)
+
+# Save processed Seurat objects
+saveRDS(seurat, "DS1/seurat_obj_all.rds")
+saveRDS(seurat_dorsal, "DS1/seurat_obj_dorsal.rds")
+```
+
+**Load Saved Objects**
+
+The saved objects can be reloaded without repeating the entire analysis.
+
+```r
+# Load complete dataset
+seurat <- readRDS("DS1/seurat_obj_all.rds")
+
+# Load dorsal telencephalic subset
+seurat_dorsal <- readRDS("DS1/seurat_obj_dorsal.rds")
+```
+
+The saved objects allow downstream analyses and visualizations to be reproduced using the previously processed data.
 ## Part 2. Integration of Multiple scRNA-seq Datasets
 <a id="top"></a>
 
