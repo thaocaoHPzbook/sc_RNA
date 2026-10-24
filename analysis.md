@@ -1991,11 +1991,179 @@ Differences in the distribution of cells from DS1 and DS2 may reflect technical 
 This initial analysis serves as a reference for evaluating the effects of subsequent data integration methods.
 
 **Note:** Merging datasets does not automatically correct batch effects. The integrated results should be evaluated to determine whether technical differences have been reduced while preserving meaningful biological variation. 
-### Step 2. Data Integration Methods
-<a id="top"></a>
+### Step 2-1. Data Integration Using Seurat (CCA)
 
-#### 2.1 Seurat Integration
-<a id="top"></a>
+Seurat provides an anchor-based integration framework to identify corresponding cell populations across multiple datasets and reduce technical batch effects.
+
+The method uses **Canonical Correlation Analysis (CCA)** to identify shared transcriptional patterns between datasets. Integration anchors are then identified between corresponding cells and used to construct a batch-corrected expression representation.
+
+The workflow consists of four main steps:
+
+1. Normalize each dataset and identify highly variable genes.
+2. Identify integration anchors using CCA.
+3. Integrate the datasets using the identified anchors.
+4. Perform dimensionality reduction and clustering on the integrated data.
+
+**1. Prepare Individual Datasets**
+
+Each dataset was independently normalized, and the top 3,000 highly variable genes were identified.
+
+```r
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+
+# Set RNA as the active assay
+DefaultAssay(seurat_DS1) <- "RNA"
+DefaultAssay(seurat_DS2) <- "RNA"
+
+# Normalize and identify highly variable genes
+seurat_DS1 <- seurat_DS1 %>%
+  NormalizeData() %>%
+  FindVariableFeatures(nfeatures = 3000)
+
+seurat_DS2 <- seurat_DS2 %>%
+  NormalizeData() %>%
+  FindVariableFeatures(nfeatures = 3000)
+```
+
+**2. Identify Integration Anchors**
+
+The datasets were organized into a list and processed using `FindIntegrationAnchors()`.
+
+```r
+# Create a list of Seurat objects
+seurat_objs <- list(
+  DS1 = seurat_DS1,
+  DS2 = seurat_DS2
+)
+
+# Identify integration anchors using CCA
+anchors <- FindIntegrationAnchors(
+  object.list = seurat_objs,
+  reduction = "cca",
+  dims = 1:30
+)
+```
+
+The first 30 canonical correlation dimensions were used to identify corresponding cell populations across DS1 and DS2.
+
+**3. Integrate Datasets**
+
+Integration was performed using the previously identified anchors.
+
+```r
+# Integrate datasets
+seurat_integrated <- IntegrateData(
+  anchorset = anchors,
+  dims = 1:30
+)
+
+# Examine the integrated object
+seurat_integrated
+```
+<img width="1174" height="312" alt="image" src="https://github.com/user-attachments/assets/cc8ae0c0-4431-4a78-ac24-1f90e0a2a5d4" />
+
+
+The resulting Seurat object contains two important assays:
+
+- **RNA:** Original, uncorrected expression data.
+- **integrated:** Batch-corrected expression values generated during integration.
+
+**4. Dimensionality Reduction and Clustering**
+
+The integrated assay was used for PCA, UMAP, and graph-based clustering.
+
+```r
+# Use the integrated assay
+DefaultAssay(seurat_integrated) <- "integrated"
+
+# Scale integrated expression data
+seurat_integrated <- ScaleData(seurat_integrated)
+
+# PCA and UMAP
+seurat_integrated <- RunPCA(
+  seurat_integrated,
+  npcs = 50
+)
+
+seurat_integrated <- RunUMAP(
+  seurat_integrated,
+  dims = 1:20
+)
+
+# Graph-based clustering
+seurat_integrated <- seurat_integrated %>%
+  FindNeighbors(dims = 1:20) %>%
+  FindClusters(resolution = 0.6)
+```
+<img width="1494" height="912" alt="image" src="https://github.com/user-attachments/assets/3fcb8cc7-feac-4cd5-84cb-340a96ffcba4" />
+**5. Visualize Integration Results**
+
+UMAP plots were generated to examine the distribution of cells across datasets and the resulting clusters.
+
+Expression patterns of representative neural developmental markers were also examined using the original RNA assay.
+
+```r
+options(repr.plot.width = 14, repr.plot.height = 9)
+
+# Dataset distribution
+plot1 <- DimPlot(
+  seurat_integrated,
+  reduction = "umap",
+  group.by = "orig.ident"
+)
+
+# Integrated cell clusters
+plot2 <- DimPlot(
+  seurat_integrated,
+  reduction = "umap",
+  label = TRUE,
+  repel = TRUE
+)
+
+# Switch to RNA assay for marker expression
+DefaultAssay(seurat_integrated) <- "RNA"
+
+# Developmental marker expression
+plot3 <- FeaturePlot(
+  seurat_integrated,
+  features = c("FOXG1", "EMX1", "DLX2", "LHX9"),
+  reduction = "umap",
+  ncol = 2,
+  pt.size = 0.1
+)
+
+# Combine visualizations
+((plot1 / plot2) | plot3) +
+  plot_layout(widths = c(1, 2))
+```
+<img width="1680" height="1080" alt="image" src="https://github.com/user-attachments/assets/3657cd4f-43fe-4687-9a97-78749e3005e1" />
+
+**6. Save Integrated Results**
+
+```r
+# Save the integrated Seurat object
+saveRDS(
+  seurat_integrated,
+  file = "integrated_seurat_cca.rds"
+)
+```
+
+**Results and Interpretation**
+
+CCA-based integration was performed to reduce technical differences between DS1 and DS2 while preserving shared biological variation.
+
+The resulting UMAP was examined to evaluate:
+
+- **Dataset mixing:** Whether cells from DS1 and DS2 with similar transcriptional profiles occupy overlapping regions.
+- **Cluster organization:** Whether distinct transcriptional populations remain identifiable after integration.
+- **Marker expression:** Whether the integrated cell populations retain biologically meaningful neural developmental signatures.
+
+The integrated UMAP can be compared with the unintegrated UMAP to assess changes in dataset separation and cellular organization.
+
+**Note:** Improved dataset mixing alone does not demonstrate successful integration. Biological differences between cell populations should also be preserved, and potential overcorrection should be considered. 
 
 #### 2.2 Harmony
 <a id="top"></a>
