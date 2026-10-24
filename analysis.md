@@ -375,6 +375,7 @@ seurat <- RunPCA(
   npcs = 50
 )
 
+
 # Examine genes contributing to the first PCs
 print(
   seurat[["pca"]],
@@ -382,6 +383,7 @@ print(
   nfeatures = 5
 )
 ```
+<img width="1462" height="978" alt="image" src="https://github.com/user-attachments/assets/d65f4b99-7c9a-4c80-a8fe-fd7679103127" />
 
 #### 6.2. Determine the Number of Principal Components
 
@@ -394,7 +396,7 @@ ElbowPlot(
   ndims = 50
 )
 ```
-
+<img width="960" height="960" alt="image" src="https://github.com/user-attachments/assets/2c8e7803-9c5a-4b1a-ac73-aa32bd7a0966" />
 **Interpretation**
 
 The elbow plot shows how the standard deviation decreases across successive PCs.
