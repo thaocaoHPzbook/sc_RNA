@@ -143,7 +143,8 @@ head(is_spike)
 head(is_mito)
 head(is_ribo)
 ```
-<img width="1418" height="432" alt="image" src="https://github.com/user-attachments/assets/d2344d68-8fcc-48a8-b376-385c1ce1ccd0" />
+<img width="920" height="218" alt="image" src="https://github.com/user-attachments/assets/01607749-2d06-44d3-b12e-9bd485ccaa7d" />
+
 
 
 #### 2.2. Calculate Mitochondrial, Spike, and Ribosome RNA Percentages
@@ -156,7 +157,8 @@ seurat[["percent.ercc"]] <- PercentageFeatureSet(seurat, pattern = "^ERCC")
 seurat[["percent.ribo"]] <- PercentageFeatureSet(seurat, pattern = "^RP[LS]")
 ```
 
-![Uploading image.png…]()
+<img width="1418" height="432" alt="image" src="https://github.com/user-attachments/assets/c4b57639-b41d-4259-ba09-ca1440b6c351" />
+
 
 #### 2.3. Visualize QC Metrics
 
