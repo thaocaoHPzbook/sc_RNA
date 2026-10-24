@@ -547,8 +547,77 @@ Both t-SNE and UMAP provide two-dimensional representations of cellular heteroge
 
 These visualizations provide an initial overview of cellular heterogeneity before graph-based clustering and cell type annotation.
 
+#### 7.3. Visualization of Cell Type Markers
+
+To explore potential cell identities and developmental states, the expression patterns of selected canonical marker genes were visualized on both t-SNE and UMAP embeddings.
+
+These markers represent cell proliferation, neural progenitors, immature neurons, and different regions of the developing human brain.
+
+```r
+library(patchwork)
+
+# Set figure dimensions
+options(repr.plot.width = 15, repr.plot.height = 24)
+
+# Selected neural and developmental markers
+genes <- c(
+  "MKI67", "NES", "DCX",
+  "FOXG1", "DLX2", "EMX1",
+  "OTX2", "LHX9", "TFAP2A"
+)
+
+<img width="1800" height="2880" alt="image" src="https://github.com/user-attachments/assets/6a53e866-fa3c-4e64-9aea-3e71218fa3a8" />
+# Visualize marker expression on t-SNE
+plot1 <- FeaturePlot(
+  seurat,
+  features = genes,
+  ncol = 3,
+  reduction = "tsne"
+)
+
+# Visualize marker expression on UMAP
+plot2 <- FeaturePlot(
+  seurat,
+  features = genes,
+  ncol = 3,
+  reduction = "umap"
+)
+
+# Display both embeddings
+plot1 / plot2
+```
+
+**Selected Marker Genes**
+
+| Gene | Biological Association |
+|------|------------------------|
+| MKI67 | Cell proliferation |
+| NES | Neural progenitor cells |
+| DCX | Immature neurons |
+| FOXG1 | Telencephalon |
+| DLX2 | Ventral telencephalon |
+| EMX1 | Dorsal telencephalon (cortex) |
+| OTX2 | Midbrain and diencephalon development |
+| LHX9 | Diencephalic and midbrain neuronal populations |
+| TFAP2A | Midbrain–hindbrain boundary-associated populations |
+
+**Results and Interpretation**
+
+Feature plots reveal the spatial distribution of marker gene expression across cells in the two-dimensional embeddings.
+
+- **MKI67 and NES:** Help identify proliferating cells and neural progenitor populations.
+- **DCX:** Highlights populations associated with immature neurons.
+- **FOXG1, DLX2, and EMX1:** Provide information about telencephalic regional identities.
+- **OTX2, LHX9, and TFAP2A:** Help explore additional regional identities during brain development.
+
+Comparing marker expression patterns across t-SNE and UMAP provides preliminary insights into cellular heterogeneity and potential developmental states.
+
+These observations will support subsequent cell clustering and biological annotation.
+
+
 ### Step 8. Cell Clustering
 <a id="top"></a>
+
 
 ### Step 9. Cell Type Annotation
 <a id="top"></a>
