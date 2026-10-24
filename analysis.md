@@ -827,6 +827,146 @@ Cell type annotation should be based on combinations of markers rather than indi
 
 These results provide a foundation for further annotation using cluster-specific differentially expressed genes and reference-based approaches.
 
+#### 9.4. Identify Cluster-Specific Marker Genes
+
+Differential expression analysis was performed to identify marker genes associated with each cell cluster.
+
+Seurat's `FindAllMarkers()` function was used to compare gene expression in each cluster against all remaining cells, allowing the identification of genes preferentially expressed in individual clusters.
+
+```r
+# Identify positive marker genes for each cluster
+cl_markers <- FindAllMarkers(
+  seurat,
+  assay = "RNA",
+  only.pos = TRUE,
+  min.pct = 0.25,
+  logfc.threshold = log2(1.2)
+)
+
+# Preview marker results
+head(cl_markers)
+```
+
+**Parameters**
+
+- **`only.pos = TRUE`:** Identify genes with higher expression in the target cluster.
+- **`min.pct = 0.25`:** Consider genes detected in at least 25% of cells in either comparison group.
+- **`logfc.threshold = log2(1.2)`:** Apply a minimum log2 fold-change threshold corresponding to a 1.2-fold difference.
+
+#### 9.5. Filter Significant Markers and Summarize Cluster Distribution
+
+Marker genes were filtered using an adjusted p-value threshold of 0.05. The number of significant marker genes was then calculated for each cluster.
+
+```r
+library(dplyr)
+
+# Retain statistically significant markers
+markers_filtered <- cl_markers %>%
+  filter(p_val_adj < 0.05)
+
+# Count significant markers in each cluster
+marker_counts <- tibble(
+  cluster = levels(Idents(seurat))
+) %>%
+  left_join(
+    markers_filtered %>%
+      mutate(cluster = as.character(cluster)) %>%
+      count(cluster, name = "n_markers"),
+    by = "cluster"
+  ) %>%
+  mutate(
+    n_markers = coalesce(n_markers, 0L)
+  )
+
+# Display marker counts
+print(marker_counts, n = Inf)
+```
+<img width="412" height="730" alt="image" src="https://github.com/user-attachments/assets/cdc00232-ae72-4957-bc28-29b01b282892" />
+
+**Interpretation**
+
+The number of significant markers provides an overview of transcriptional differences between each cluster and the remaining cells.
+
+Clusters with numerous significant markers may exhibit more distinct transcriptional signatures. However, marker counts alone do not determine cell type identity or clustering quality.
+
+#### 9.6. Visualize the Top 10 Marker Genes per Cluster
+
+The top 10 significant marker genes from each cluster were selected based on their average log2 fold change.
+
+A heatmap was generated to visualize their expression patterns across the identified cell populations.
+
+```r
+library(dplyr)
+library(ggplot2)
+
+# Select the top 10 markers per cluster
+top10_markers <- markers_filtered %>%
+  group_by(cluster) %>%
+  slice_max(
+    order_by = avg_log2FC,
+    n = 10,
+    with_ties = FALSE
+  ) %>%
+  ungroup()
+
+# Extract unique genes for visualization
+genes_plot <- unique(top10_markers$gene)
+
+# Scale selected genes in a separate Seurat object
+seurat_heatmap <- ScaleData(
+  seurat,
+  assay = "RNA",
+  features = genes_plot,
+  verbose = FALSE
+)
+
+# Set figure dimensions
+options(
+  repr.plot.width = 16,
+  repr.plot.height = max(
+    8,
+    length(genes_plot) * 0.18
+  )
+)
+
+# Visualize cluster-specific marker expression
+DoHeatmap(
+  seurat_heatmap,
+  assay = "RNA",
+  features = genes_plot,
+  slot = "scale.data",
+  size = 4
+) +
+  scale_fill_gradient2(
+    low = "#0785e0",
+    mid = "#FFFFFF",
+    high = "#d81639",
+    midpoint = 0,
+    name = "Scaled\nexpression"
+  ) +
+  theme(
+    axis.text.y = element_text(size = 8),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+```
+<img width="1920" height="3175" alt="image" src="https://github.com/user-attachments/assets/3760146b-ea1d-4902-95f4-62c45bc42bbc" />
+
+
+**Results and Interpretation**
+
+The heatmap illustrates the expression patterns of the top marker genes across cell clusters.
+
+- **Rows:** Significant marker genes identified by differential expression analysis.
+- **Columns:** Individual cells grouped by cluster identity.
+- **Red:** Relatively higher scaled gene expression.
+- **Blue:** Relatively lower scaled gene expression.
+- **Cluster-specific patterns:** Groups of genes preferentially expressed in particular cell populations.
+
+The identified marker genes provide a data-driven basis for characterizing transcriptionally distinct cell populations.
+
+Combining these markers with established neural and developmental markers can support more reliable biological annotation of the identified clusters.
+
 
 ### Step 10. Pseudotime Analysis
 <a id="top"></a>
