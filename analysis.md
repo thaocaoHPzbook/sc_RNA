@@ -4,7 +4,6 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 
 ## Table of Contents
 
-- [Introduction](#introduction)
 - [Preparation](#preparation)
 
 ### Part 1. Basic scRNA-seq Data Analysis
@@ -50,11 +49,10 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 
 ---
 
-## Introduction
-<a id="top"></a>
 
 ## Preparation
 <a id="top"></a>
+The analyses begin with preprocessed gene expression count matrices generated using Cell Ranger. The original tutorial uses publicly available scRNA-seq datasets from human cerebral organoids, published by [Velasco et al. (2019)](https://www.nature.com/articles/s41586-019-1654-9). These datasets provide a foundation for reproducing established workflows, exploring downstream analyses, and interpreting cellular heterogeneity and developmental trajectories.
 
 ## Part 1. Basic scRNA-seq Data Analysis
 <a id="top"></a>
