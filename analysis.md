@@ -114,7 +114,6 @@ These metrics provide an initial overview of sequencing depth and gene detection
 ### Step 2. Quality Control
 <a id="top"></a>
 
-
 Quality control (QC) was performed to identify potentially low-quality cells and doublets before downstream analysis. Three key metrics were examined:
 
 - **`nFeature_RNA`:** Number of genes detected per cell. Very low values may indicate poor-quality cells, while unusually high values may suggest doublets.
@@ -143,9 +142,7 @@ head(is_spike)
 head(is_mito)
 head(is_ribo)
 ```
-<img width="920" height="218" alt="image" src="https://github.com/user-attachments/assets/01607749-2d06-44d3-b12e-9bd485ccaa7d" />
-
-
+<img width="1026" height="218" alt="image" src="https://github.com/user-attachments/assets/260c56e0-2da6-48b0-8c6b-51818dfe1a96" />
 
 #### 2.2. Calculate Mitochondrial, Spike, and Ribosome RNA Percentages
 
