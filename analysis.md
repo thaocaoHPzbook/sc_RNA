@@ -63,7 +63,12 @@ The gene expression count matrix from dataset DS1 was imported using `Read10X()`
 <a id="top"></a>
 ```r
 library(Seurat)
+```
 
+### Step 1. Create a Seurat Object
+<a id="top"></a>
+
+```r
 # Load the 10x Genomics count matrix
 counts <- Read10X(data.dir = "data/DS1/")
 
@@ -106,9 +111,37 @@ For example, the first cell contains **16,752 UMI counts across 3,287 detected g
 
 These metrics provide an initial overview of sequencing depth and gene detection per cell and are used in subsequent quality control to identify potentially low-quality cells.
 
+### Identify Mitochondrial, Ribosomal, and ERCC Genes
 
-### Step 1. Create a Seurat Object
-<a id="top"></a>
+Gene names were extracted from the Seurat object to identify specific gene categories relevant to quality control, including mitochondrial genes, ribosomal protein genes, and ERCC spike-in controls.
+
+```r
+# Extract gene names
+gene_list <- rownames(seurat)
+
+# Identify ERCC spike-in genes
+is_spike <- grep("^ERCC", gene_list, value = TRUE)
+
+# Identify mitochondrial genes (human)
+is_mito <- grep("^MT-", gene_list, value = TRUE)
+
+# Identify ribosomal protein genes
+is_ribo <- grep("^RP[LS]", gene_list, value = TRUE)
+
+# Preview the identified genes
+head(is_spike)
+head(is_mito)
+head(is_ribo)
+```
+
+**Results and Interpretation**
+<img width="1088" height="216" alt="image" src="https://github.com/user-attachments/assets/b11d43c7-0fcf-4ee8-a121-0e3c7d264d75" />
+
+- **ERCC spike-in genes (`^ERCC`):** Synthetic RNA controls used to assess technical variation, if included in the dataset.
+- **Mitochondrial genes (`^MT-`):** Genes encoded by mitochondrial DNA. A high proportion of mitochondrial transcripts may indicate stressed or damaged cells.
+- **Ribosomal protein genes (`^RP[LS]`):** Genes encoding ribosomal proteins (RPL and RPS families), which are involved in protein synthesis.
+
+These gene categories can be used to calculate additional quality control metrics and assess potential technical or biological variation across cells.
 
 ### Step 2. Quality Control
 <a id="top"></a>
