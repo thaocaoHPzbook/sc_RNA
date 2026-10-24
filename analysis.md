@@ -1882,15 +1882,115 @@ seurat_dorsal <- readRDS("DS1/seurat_obj_dorsal.rds")
 ```
 
 The saved objects allow downstream analyses and visualizations to be reproduced using the previously processed data.
+
 ## Part 2. Integration of Multiple scRNA-seq Datasets
 <a id="top"></a>
+When analyzing multiple scRNA-seq datasets, technical differences between experiments may introduce batch effects that obscure biological similarities between cell populations.
 
-### Step 0. Load Datasets
-<a id="top"></a>
+In this section, two human cerebral organoid datasets (DS1 and DS2) were combined to examine their initial distribution and evaluate the need for data integration.
 
-### Step 1. Merge Datasets
-<a id="top"></a>
+### Step 1. Load and Merge Datasets
 
+**1. Load Processed Seurat Objects**
+
+The processed Seurat objects from DS1 and DS2 were loaded for joint analysis.
+
+```r
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+
+# Load processed datasets
+seurat_DS1 <- readRDS("DS1/seurat_obj_all.rds")
+seurat_DS2 <- readRDS("DS2/seurat_obj_all.rds")
+
+# Examine datasets
+seurat_DS1
+seurat_DS2
+```
+
+**2. Merge the Datasets**
+
+The two datasets were merged into a single Seurat object, while preserving their original sample identities.
+
+```r
+# Merge DS1 and DS2
+seurat_merged <- merge(
+  x = seurat_DS1,
+  y = seurat_DS2,
+  add.cell.ids = c("DS1", "DS2"),
+  project = "DS1_DS2"
+)
+
+# Examine the merged object
+seurat_merged
+
+# Number of cells from each dataset
+table(seurat_merged$orig.ident)
+```
+
+**3. Preprocessing of the Merged Dataset**
+
+The merged dataset was normalized, followed by highly variable gene selection, scaling, PCA, and UMAP.
+
+```r
+# Join layers for the initial unintegrated analysis
+seurat <- JoinLayers(seurat_merged)
+
+# Preprocessing and dimensionality reduction
+seurat <- seurat %>%
+  NormalizeData() %>%
+  FindVariableFeatures(nfeatures = 3000) %>%
+  ScaleData() %>%
+  RunPCA(npcs = 50) %>%
+  RunUMAP(dims = 1:20)
+```
+<img width="1416" height="756" alt="image" src="https://github.com/user-attachments/assets/8b2904ff-711d-453a-b7bd-bf90b687ab94" />
+
+
+**4. Visualize Dataset Distribution and Marker Expression**
+
+UMAP visualization was used to examine the distribution of cells from the two datasets. Expression patterns of representative neural developmental markers were also investigated.
+
+```r
+options(repr.plot.width = 16, repr.plot.height = 9)
+
+# Visualize cells by dataset
+plot1 <- DimPlot(
+  seurat,
+  group.by = "orig.ident"
+)
+
+# Visualize neural developmental markers
+plot2 <- FeaturePlot(
+  seurat,
+  features = c("FOXG1", "EMX1", "DLX2", "LHX9"),
+  ncol = 2,
+  pt.size = 0.1
+)
+
+# Combine plots
+plot1 + plot2 +
+  plot_layout(widths = c(1.5, 2))
+```
+<img width="1680" height="720" alt="image" src="https://github.com/user-attachments/assets/7b183d5a-aadb-4666-989f-8037ccf46d08" />
+
+**Results and Interpretation**
+
+The merged UMAP provides an initial overview of the transcriptional relationships between DS1 and DS2 before batch correction.
+
+- **Dataset distribution:** Examining the overlap between DS1 and DS2 helps identify potential dataset-specific separation.
+- **FOXG1:** Associated with telencephalic identity.
+- **EMX1:** Associated with dorsal telencephalic development.
+- **DLX2:** Associated with ventral telencephalic development.
+- **LHX9:** Associated with diencephalic and midbrain development.
+
+Differences in the distribution of cells from DS1 and DS2 may reflect technical batch effects, biological differences, or a combination of both.
+
+This initial analysis serves as a reference for evaluating the effects of subsequent data integration methods.
+
+**Note:** Merging datasets does not automatically correct batch effects. The integrated results should be evaluated to determine whether technical differences have been reduced while preserving meaningful biological variation. 
 ### Step 2. Data Integration Methods
 <a id="top"></a>
 
