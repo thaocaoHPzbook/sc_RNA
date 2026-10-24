@@ -2165,8 +2165,161 @@ The integrated UMAP can be compared with the unintegrated UMAP to assess changes
 
 **Note:** Improved dataset mixing alone does not demonstrate successful integration. Biological differences between cell populations should also be preserved, and potential overcorrection should be considered. 
 
-#### 2.2 Harmony
-<a id="top"></a>
+### Step 2-2. Data Integration Using Harmony
+
+[Harmony](https://github.com/immunogenomics/harmony) is a dimensionality reduction-based integration method designed to reduce batch effects while preserving biological variation across scRNA-seq datasets.
+
+Unlike Seurat's anchor-based integration, Harmony operates directly on PCA embeddings. It iteratively applies soft clustering and batch-specific corrections to align corresponding cell populations across datasets.
+
+The corrected embeddings are subsequently used for dimensionality reduction, visualization, and clustering.
+
+**1. Prepare the Merged Dataset**
+
+DS1 and DS2 were merged into a single Seurat object, followed by normalization, highly variable gene selection, scaling, and PCA.
+
+```r
+library(Seurat)
+library(harmony)
+library(ggplot2)
+library(patchwork)
+
+# Merge datasets
+seurat_harmony <- merge(
+  x = seurat_DS1,
+  y = seurat_DS2,
+  add.cell.ids = c("DS1", "DS2")
+)
+
+# Set RNA as the active assay
+DefaultAssay(seurat_harmony) <- "RNA"
+
+# Preprocessing
+seurat_harmony <- NormalizeData(seurat_harmony)
+
+seurat_harmony <- FindVariableFeatures(
+  seurat_harmony,
+  nfeatures = 3000
+)
+
+seurat_harmony <- ScaleData(seurat_harmony)
+
+# PCA
+seurat_harmony <- RunPCA(
+  seurat_harmony,
+  npcs = 50
+)
+```
+
+
+**2. Perform Harmony Integration**
+
+Harmony was applied to the PCA embeddings using `orig.ident` as the batch variable.
+
+```r
+# Perform Harmony integration
+seurat_harmony <- RunHarmony(
+  seurat_harmony,
+  group.by.vars = "orig.ident",
+  dims.use = 1:20,
+  max_iter = 50
+)
+```
+
+The resulting batch-corrected embeddings are stored in the `harmony` dimensional reduction.
+
+```r
+# Examine Harmony embeddings
+head(Embeddings(seurat_harmony, "harmony"))
+```
+
+**3. UMAP and Clustering**
+
+The Harmony-corrected embeddings were used for UMAP visualization and graph-based clustering.
+
+```r
+# UMAP using Harmony embeddings
+seurat_harmony <- RunUMAP(
+  seurat_harmony,
+  reduction = "harmony",
+  dims = 1:20
+)
+
+# Construct nearest-neighbor graph
+seurat_harmony <- FindNeighbors(
+  seurat_harmony,
+  reduction = "harmony",
+  dims = 1:20
+)
+
+# Identify cell clusters
+seurat_harmony <- FindClusters(
+  seurat_harmony,
+  resolution = 0.6
+)
+```
+<img width="1386" height="510" alt="image" src="https://github.com/user-attachments/assets/1b1505b6-34de-44c4-afd8-bcf46dc6f76a" />
+<img width="1120" height="284" alt="image" src="https://github.com/user-attachments/assets/c0e43eac-be5a-4c5e-857d-941171a4ceaa" />
+
+**4. Visualize Integration Results**
+
+The integrated UMAP was examined to assess dataset mixing, cluster organization, and the expression of representative neural developmental markers.
+
+```r
+options(repr.plot.width = 14, repr.plot.height = 9)
+
+# Dataset distribution
+plot1 <- DimPlot(
+  seurat_harmony,
+  reduction = "umap",
+  group.by = "orig.ident"
+)
+
+# Cell clusters
+plot2 <- DimPlot(
+  seurat_harmony,
+  reduction = "umap",
+  label = TRUE,
+  repel = TRUE
+)
+
+# Developmental marker expression
+plot3 <- FeaturePlot(
+  seurat_harmony,
+  features = c("FOXG1", "EMX1", "DLX2", "LHX9"),
+  reduction = "umap",
+  ncol = 2,
+  pt.size = 0.1
+)
+
+# Combine visualizations
+((plot1 / plot2) | plot3) +
+  plot_layout(widths = c(1, 2))
+```
+<img width="1680" height="1080" alt="image" src="https://github.com/user-attachments/assets/93448936-f57e-4a8a-b548-9dd2f8d24e60" />
+
+**5. Save Integrated Results**
+
+```r
+# Save Harmony-integrated Seurat object
+saveRDS(
+  seurat_harmony,
+  file = "integrated_harmony.rds"
+)
+```
+
+**Results and Interpretation**
+
+Harmony integration was performed to reduce dataset-associated variation in the PCA embeddings of DS1 and DS2.
+
+The resulting UMAP was examined to evaluate:
+
+- **Dataset mixing:** The extent to which transcriptionally similar cells from DS1 and DS2 occupy overlapping regions.
+- **Cluster organization:** Whether distinct cell populations remain identifiable after integration.
+- **Biological preservation:** Whether developmental marker expression remains consistent with expected neural cell identities.
+
+Harmony-corrected embeddings provide an alternative representation of the merged datasets, enabling comparison with the unintegrated data and Seurat CCA integration results.
+
+**Note:** Harmony corrects the low-dimensional embeddings rather than directly modifying the RNA expression matrix. Therefore, the original normalized RNA expression values remain available for downstream gene expression analysis. 
 
 #### 2.3 LIGER
 <a id="top"></a>
