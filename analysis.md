@@ -58,12 +58,24 @@ The analyses begin with preprocessed gene expression count matrices generated us
 <a id="top"></a>
 The gene expression count matrix from dataset DS1 was imported using `Read10X()`. A Seurat object was then created using `CreateSeuratObject()` to store the expression data and associated cell metadata for downstream analysis.
 
-```bash
-library(Seurat)
-```
 
 ### Step 0. Import Seurat Package
 <a id="top"></a>
+```r
+library(Seurat)
+
+# Load the 10x Genomics count matrix
+counts <- Read10X(data.dir = "data/DS1/")
+
+# Create a Seurat object
+seurat <- CreateSeuratObject(
+  counts = counts,
+  project = "DS1"
+)
+
+# Inspect the Seurat object
+seurat
+```
 
 ### Step 1. Create a Seurat Object
 <a id="top"></a>
