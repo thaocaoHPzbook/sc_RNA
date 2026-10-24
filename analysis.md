@@ -1689,6 +1689,8 @@ FeaturePlot(
   ncol = 4
 )
 ```
+<img width="1500" height="300" alt="image" src="https://github.com/user-attachments/assets/26ea2c02-9d65-4027-b4e0-373d91f0e2a9" />
+
 
 **Results and Interpretation**
 
@@ -1722,7 +1724,6 @@ pca_embeddings <- Embeddings(
 # Construct diffusion map
 dm <- DiffusionMap(pca_embeddings)
 ```
-<img width="1500" height="300" alt="image" src="https://github.com/user-attachments/assets/8d204ae5-6598-4a9c-8bbc-ac13d9c4e050" />
 
 **2. Calculate Diffusion Pseudotime**
 
