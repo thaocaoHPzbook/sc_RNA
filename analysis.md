@@ -1147,6 +1147,172 @@ These expression patterns provide additional information for identifying transcr
 
 The Presto-derived markers can also be compared with those identified using Seurat's `FindAllMarkers()` to examine similarities and differences between the two marker discovery approaches.
 
+#### 9.9. Detailed Visualization of Selected Marker Genes
+
+The expression patterns of **NEUROD2** and **NEUROD6**, two neuronal differentiation-associated genes, were further examined using UMAP feature plots and violin plots.
+
+These genes were selected to investigate their potential enrichment in Cluster 2 and assess their contribution to the transcriptional identity of this cell population.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+# Set figure dimensions
+options(repr.plot.width = 16, repr.plot.height = 9)
+
+# Generate UMAP feature plots
+fp <- FeaturePlot(
+  seurat,
+  features = c("NEUROD2", "NEUROD6"),
+  reduction = "umap",
+  cols = c("#DADADA", "#8773e0"),
+  pt.size = 0.5,
+  order = TRUE,
+  combine = FALSE
+)
+
+# Preserve UMAP aspect ratio
+fp[[1]] <- fp[[1]] + coord_fixed()
+fp[[2]] <- fp[[2]] + coord_fixed()
+
+# Generate violin plots
+vp <- VlnPlot(
+  seurat,
+  features = c("NEUROD2", "NEUROD6"),
+  pt.size = 0,
+  combine = FALSE
+)
+
+# Remove redundant legends
+vp[[1]] <- vp[[1]] + NoLegend()
+vp[[2]] <- vp[[2]] + NoLegend()
+
+# Arrange UMAP and violin plots
+p <- wrap_plots(
+  A = fp[[1]],
+  B = vp[[1]],
+  C = vp[[2]],
+  D = fp[[2]],
+  design = "ABC\nDBC"
+) &
+  theme(
+    plot.title = element_text(
+      size = 17,
+      face = "bold"
+    ),
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 11),
+    legend.text = element_text(size = 11)
+  )
+
+# Display combined visualization
+print(p)
+```
+
+**Results and Interpretation**
+
+The combined visualization provides complementary information about the expression of NEUROD2 and NEUROD6.
+
+- **UMAP FeaturePlots:** Display the spatial distribution of gene expression across individual cells.
+- **Violin Plots:** Show the distribution of gene expression levels across the identified clusters.
+- **NEUROD2 and NEUROD6:** Genes associated with neuronal differentiation, particularly in excitatory neuronal populations.
+
+Enrichment of these markers in Cluster 2 would support its potential neuronal identity. However, additional canonical markers should be examined before assigning a definitive cell type annotation.
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/68d43f9d-7654-4182-a9da-a673b324e5a3" />
+
+
+#### 8.5. Cluster Distribution and Visualization
+
+The clustering results were further examined to determine the number of identified clusters, their cell distributions, and the clustering resolutions stored in the Seurat object.
+
+To facilitate comparison between dimensionality reduction methods, consistent cluster colors were applied to both t-SNE and UMAP visualizations.
+
+**1. Inspect Cluster Assignments**
+
+```r
+# Number of cells in each cluster
+table(Idents(seurat))
+
+# Total number of clusters containing cells
+length(unique(Idents(seurat)))
+
+# List stored clustering resolutions
+grep(
+  "snn_res",
+  colnames(seurat[[]]),
+  value = TRUE
+)
+```
+
+<img width="1138" height="280" alt="image" src="https://github.com/user-attachments/assets/84a06ce5-6de8-47b0-9f33-b0e9c82d3017" />
+
+
+**2. Visualize Clusters on t-SNE and UMAP**
+
+```r
+library(ggplot2)
+library(patchwork)
+
+# Set figure dimensions
+options(repr.plot.width = 14, repr.plot.height = 6)
+
+# Assign consistent colors to clusters
+cluster_cols <- scales::hue_pal()(
+  length(levels(Idents(seurat)))
+)
+
+names(cluster_cols) <- levels(Idents(seurat))
+
+# t-SNE visualization
+plot_tsne <- DimPlot(
+  seurat,
+  reduction = "tsne",
+  cols = cluster_cols,
+  pt.size = 0.3,
+  label = TRUE,
+  label.size = 3,
+  repel = TRUE
+) +
+  ggtitle(NULL) +
+  theme_classic(base_size = 12) +
+  theme(
+    legend.title = element_blank()
+  )
+
+# UMAP visualization
+plot_umap <- DimPlot(
+  seurat,
+  reduction = "umap",
+  cols = cluster_cols,
+  pt.size = 0.3,
+  label = TRUE,
+  label.size = 3,
+  repel = TRUE
+) +
+  ggtitle(NULL) +
+  theme_classic(base_size = 12) +
+  theme(
+    legend.title = element_blank()
+  )
+
+# Display both plots
+plot_tsne + plot_umap
+```
+<img width="1680" height="720" alt="image" src="https://github.com/user-attachments/assets/ba3ce7db-c9e1-49aa-abc2-14917e68c7bc" />
+
+
+**Results and Interpretation**
+
+The clustering results were visualized using both t-SNE and UMAP embeddings, with consistent colors representing the same clusters across both plots.
+
+- **Cluster size:** Indicates the number of cells assigned to each cluster.
+- **Cluster number:** Represents the total number of computationally identified cell populations.
+- **Cluster distribution:** Shows the organization of transcriptionally similar cells in the reduced-dimensional space.
+- **Consistent colors:** Facilitate direct comparison of cluster assignments between t-SNE and UMAP.
+
+Although t-SNE and UMAP may display different spatial arrangements, the cluster identities remain unchanged because both visualizations use the same clustering results.
+
+These findings provide an overview of cellular heterogeneity and establish a foundation for subsequent marker gene analysis and cell type annotation.
 
 ### Step 10. Pseudotime Analysis
 <a id="top"></a>
