@@ -968,6 +968,110 @@ The identified marker genes provide a data-driven basis for characterizing trans
 Combining these markers with established neural and developmental markers can support more reliable biological annotation of the identified clusters.
 
 
+#### 9.7. Alternative Marker Identification Using Presto
+
+As an alternative to Seurat's `FindAllMarkers()`, cluster-specific marker genes were identified using the [Presto](https://github.com/immunogenomics/presto) package.
+
+Presto provides an efficient implementation of the Wilcoxon rank-sum test for differential expression analysis in single-cell datasets. Each cluster was compared against all remaining cells using log-normalized RNA expression data.
+
+**1. Identify Marker Genes**
+
+```r
+library(presto)
+library(dplyr)
+
+# Identify markers using log-normalized RNA data
+cl_markers_presto <- wilcoxauc(
+  seurat,
+  assay = "data",
+  seurat_assay = "RNA"
+)
+
+# Preview results
+head(cl_markers_presto)
+```
+
+
+**2. Filter Significant Marker Genes**
+
+Marker genes were filtered using expression differences, detection percentages, and adjusted p-values.
+
+```r
+# Filter significant markers
+markers_filtered_presto <- cl_markers_presto %>%
+  filter(
+    logFC > log(1.2),
+    pct_in > 20,
+    padj < 0.05
+  )
+```
+
+**Filtering criteria**
+
+- **`logFC > log(1.2)`:** Retain genes showing a positive difference in mean log-normalized expression above the selected threshold.
+- **`pct_in > 20`:** Retain genes detected in more than 20% of cells within the target cluster.
+- **`padj < 0.05`:** Retain statistically significant genes after Benjamini–Hochberg correction.
+
+**3. Count Significant Markers per Cluster**
+
+The number of significant marker genes was calculated for each cluster, including clusters without markers meeting the filtering criteria.
+
+```r
+# Count significant markers per cluster
+marker_counts_presto <- tibble(
+  group = levels(Idents(seurat))
+) %>%
+  left_join(
+    markers_filtered_presto %>%
+      mutate(group = as.character(group)) %>%
+      count(group, name = "n_markers"),
+    by = "group"
+  ) %>%
+  mutate(
+    n_markers = coalesce(n_markers, 0L)
+  )
+
+# Display marker counts
+print(marker_counts_presto, n = Inf)
+```
+<img width="390" height="730" alt="image" src="https://github.com/user-attachments/assets/8f8df4f8-5289-49d7-92a1-9f7213d43118" />
+
+**4. Select the Top 10 Markers per Cluster**
+
+The top 10 significant markers were selected from each cluster based on their log fold-change values.
+
+```r
+# Select top 10 markers per cluster
+top10_markers_presto <- markers_filtered_presto %>%
+  group_by(group) %>%
+  slice_max(
+    order_by = logFC,
+    n = 10,
+    with_ties = FALSE
+  ) %>%
+  ungroup()
+
+# Display selected markers
+print(
+  top10_markers_presto,
+  n = Inf,
+  width = Inf
+)
+```
+<img width="1234" height="994" alt="image" src="https://github.com/user-attachments/assets/a7c7cd5f-e0b1-4614-82cb-3444ea3fb918" />
+
+**Results and Interpretation**
+
+Presto identifies genes with differential expression patterns across cell clusters, providing an alternative approach to marker discovery.
+
+The resulting marker lists can be used to:
+
+- Identify transcriptional signatures associated with individual clusters.
+- Compare marker genes identified using different analytical implementations.
+- Support biological annotation through canonical markers and literature-based interpretation.
+
+The selected markers provide additional evidence for characterizing cellular heterogeneity in the cerebral organoid dataset.
+
 ### Step 10. Pseudotime Analysis
 <a id="top"></a>
 
