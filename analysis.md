@@ -1458,6 +1458,7 @@ These annotations provide an overview of the cellular composition of the cerebra
 The annotated identities will be used for downstream analyses of cellular differentiation and developmental trajectories.
 
 ### Step 10. Pseudotemporal Cell Ordering
+<a id="top"></a>
 
 Pseudotime analysis was performed to investigate potential developmental trajectories among dorsal telencephalic cell populations.
 
@@ -1509,9 +1510,113 @@ Re-identifying highly variable genes allows subsequent analyses to focus on tran
 
 These selected cells will be used for diffusion map construction and pseudotime inference.
 
+#### 10.3. Reduce Cell Cycle Effects
 
-### Step 10. Pseudotime Analysis
-<a id="top"></a>
+Cell cycle-related variation may influence the separation of neural progenitor populations and potentially obscure transcriptional changes associated with neuronal differentiation.
+
+To reduce this effect, known cell cycle genes were excluded from the highly variable gene list before repeating dimensionality reduction.
+
+**1. Exclude Cell Cycle Genes**
+
+```r
+# Number of HVGs before filtering
+n_hvg_before <- length(
+  VariableFeatures(seurat_dorsal)
+)
+
+# Remove cell cycle-related genes from HVGs
+VariableFeatures(seurat_dorsal) <- setdiff(
+  VariableFeatures(seurat_dorsal),
+  unlist(cc.genes)
+)
+
+# Number of HVGs after filtering
+n_hvg_after <- length(
+  VariableFeatures(seurat_dorsal)
+)
+
+# Check the number of excluded genes
+n_hvg_before - n_hvg_after
+```
+
+**2. Recompute Scaling and Dimensionality Reduction**
+
+Following the exclusion of cell cycle genes, the selected features were rescaled, and PCA and UMAP were recalculated.
+
+```r
+# Scale the remaining highly variable genes
+seurat_dorsal <- ScaleData(
+  seurat_dorsal,
+  features = VariableFeatures(seurat_dorsal)
+)
+
+# Recompute PCA
+seurat_dorsal <- RunPCA(
+  seurat_dorsal,
+  npcs = 50
+)
+
+# Recompute UMAP using the first 20 PCs
+seurat_dorsal <- RunUMAP(
+  seurat_dorsal,
+  dims = 1:20
+)
+```
+<img width="1474" height="876" alt="image" src="https://github.com/user-attachments/assets/f64b4b51-cb59-4e30-9ae7-69c46e0fd1d7" />
+
+**Results and Interpretation**
+
+Cell cycle-associated genes were excluded from the selected highly variable features to reduce their contribution to subsequent dimensionality reduction.
+
+The updated PCA and UMAP embeddings provide an alternative representation of transcriptional variation among dorsal telencephalic populations.
+
+This approach may help emphasize expression differences associated with neuronal differentiation and maturation rather than cell cycle-related variation.
+
+The resulting embeddings will be used to explore potential developmental trajectories through diffusion-based pseudotime analysis.
+
+
+#### 10.4. Visualization of Developmental Markers
+
+The expression patterns of selected developmental markers were visualized on the updated UMAP embedding to explore potential transcriptional transitions among dorsal telencephalic cell populations.
+
+Four genes representing different cellular and developmental states were examined.
+
+```r
+# Set figure dimensions
+options(repr.plot.width = 18, repr.plot.height = 4)
+
+# Visualize developmental markers on the updated UMAP
+FeaturePlot(
+  seurat_dorsal,
+  features = c("MKI67", "GLI3", "EOMES", "NEUROD6"),
+  reduction = "umap",
+  ncol = 4
+)
+```
+<img width="1500" height="300" alt="image" src="https://github.com/user-attachments/assets/52e6c162-4e96-4ade-bc32-537e159ac33e" />
+
+**Selected Marker Genes**
+
+| Gene | Biological Association |
+|---|---|
+| MKI67 | Cell proliferation |
+| GLI3 | Dorsal forebrain development and patterning |
+| EOMES | Cortical intermediate progenitors |
+| NEUROD6 | Neuronal differentiation and maturation |
+
+**Results and Interpretation**
+
+The feature plots illustrate the distribution of developmental marker expression across dorsal telencephalic populations.
+
+- **MKI67:** Helps identify proliferating cells.
+- **GLI3:** Provides information about dorsal forebrain developmental identity.
+- **EOMES:** Highlights intermediate progenitor populations.
+- **NEUROD6:** Indicates populations associated with neuronal differentiation.
+
+Distinct or gradually changing expression patterns across the UMAP may suggest transcriptional transitions between progenitor and neuronal states.
+
+These observations provide a preliminary basis for subsequent diffusion map and pseudotime analyses.
+
 
 ### Step 11. Save Results
 <a id="top"></a>
