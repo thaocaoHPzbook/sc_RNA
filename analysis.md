@@ -111,9 +111,20 @@ For example, the first cell contains **16,752 UMI counts across 3,287 detected g
 
 These metrics provide an initial overview of sequencing depth and gene detection per cell and are used in subsequent quality control to identify potentially low-quality cells.
 
-### Identify Mitochondrial, Ribosomal, and ERCC Genes
+### Step 2. Quality Control
+<a id="top"></a>
 
-Gene names were extracted from the Seurat object to identify specific gene categories relevant to quality control, including mitochondrial genes, ribosomal protein genes, and ERCC spike-in controls.
+### Step 2. Quality Control
+
+Quality control (QC) was performed to identify potentially low-quality cells and doublets before downstream analysis. Three key metrics were examined:
+
+- **`nFeature_RNA`:** Number of genes detected per cell. Very low values may indicate poor-quality cells, while unusually high values may suggest doublets.
+- **`nCount_RNA`:** Total UMI counts per cell, reflecting the amount of captured RNA.
+- **`percent.mt`:** Percentage of mitochondrial gene counts. Elevated values may indicate cellular stress or damage.
+
+QC thresholds were determined based on the distribution of these metrics rather than applying fixed cutoffs.
+
+#### 2.1. Identify Gene Categories for QC
 
 ```r
 # Extract gene names
@@ -122,29 +133,71 @@ gene_list <- rownames(seurat)
 # Identify ERCC spike-in genes
 is_spike <- grep("^ERCC", gene_list, value = TRUE)
 
-# Identify mitochondrial genes (human)
+# Identify mitochondrial genes
 is_mito <- grep("^MT-", gene_list, value = TRUE)
 
 # Identify ribosomal protein genes
 is_ribo <- grep("^RP[LS]", gene_list, value = TRUE)
 
-# Preview the identified genes
+# Preview identified genes
 head(is_spike)
 head(is_mito)
 head(is_ribo)
 ```
 
-**Results and Interpretation**
-<img width="1088" height="216" alt="image" src="https://github.com/user-attachments/assets/b11d43c7-0fcf-4ee8-a121-0e3c7d264d75" />
+#### 2.2. Calculate Mitochondrial Percentage
 
-- **ERCC spike-in genes (`^ERCC`):** Synthetic RNA controls used to assess technical variation, if included in the dataset.
-- **Mitochondrial genes (`^MT-`):** Genes encoded by mitochondrial DNA. A high proportion of mitochondrial transcripts may indicate stressed or damaged cells.
-- **Ribosomal protein genes (`^RP[LS]`):** Genes encoding ribosomal proteins (RPL and RPS families), which are involved in protein synthesis.
+The proportion of mitochondrial gene counts was calculated for each cell using `PercentageFeatureSet()`.
 
-These gene categories can be used to calculate additional quality control metrics and assess potential technical or biological variation across cells.
+```r
+seurat[["percent.mt"]] <- PercentageFeatureSet(
+  seurat,
+  pattern = "^MT-"
+)
+```
 
-### Step 2. Quality Control
-<a id="top"></a>
+#### 2.3. Visualize QC Metrics
+
+Violin plots were generated to examine the distributions of gene counts, detected genes, and mitochondrial percentages across cells.
+
+```r
+VlnPlot(
+  seurat,
+  features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
+  ncol = 3,
+  pt.size = 0
+)
+```
+
+#### 2.4. Examine Relationships Between QC Metrics
+
+Scatter plots were used to investigate relationships between total UMI counts, detected genes, and mitochondrial percentages.
+
+```r
+library(patchwork)
+
+plot1 <- FeatureScatter(
+  seurat,
+  feature1 = "nCount_RNA",
+  feature2 = "percent.mt"
+)
+
+plot2 <- FeatureScatter(
+  seurat,
+  feature1 = "nCount_RNA",
+  feature2 = "nFeature_RNA"
+)
+
+plot1 + plot2
+```
+
+**Interpretation**
+
+The relationship between `nCount_RNA` and `nFeature_RNA` reflects the association between sequencing depth and gene detection. Mitochondrial percentages provide an additional indicator of potential cellular stress or damage.
+
+These distributions will guide the selection of appropriate filtering thresholds to remove potentially low-quality cells while retaining biologically relevant populations.
+
+
 
 ### Step 3. Normalization
 <a id="top"></a>
