@@ -532,7 +532,8 @@ plot2 <- UMAPPlot(seurat) +
 # Display plots
 plot1 + plot2
 ```
-<img width="1440" height="720" alt="image" src="https://github.com/user-attachments/assets/5c26f460-96e8-4b2e-80df-987c7d0c55bf" />
+<img width="1800" height="2880" alt="image" src="https://github.com/user-attachments/assets/755ba11e-e061-4899-b0ae-5a6f7cf7280c" />
+
 
 
 **Results and Interpretation**
