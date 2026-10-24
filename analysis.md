@@ -258,6 +258,50 @@ The normalized expression matrix is stored in the `data` layer of the RNA assay,
 ### Step 4. Highly Variable Feature Selection
 <a id="top"></a>
 
+
+Highly variable genes (HVGs) were identified to capture biological heterogeneity across cells. Genes with substantial variation in expression are generally more informative for distinguishing cell populations than genes with relatively uniform expression.
+
+The top **3,000 highly variable genes** were selected using Seurat's `FindVariableFeatures()` function with the default `vst` method.
+
+```r
+# Identify the top 3,000 highly variable genes
+seurat <- FindVariableFeatures(
+  seurat,
+  selection.method = "vst",
+  nfeatures = 3000
+)
+```
+
+```bash
+# Extract the top 20 highly variable genes
+top_features <- head(VariableFeatures(seurat), 20)
+
+# Visualize highly variable genes
+plot1 <- VariableFeaturePlot(seurat)
+
+# Label the top 20 genes
+plot2 <- LabelPoints(
+  plot = plot1,
+  points = top_features,
+  repel = TRUE
+)
+
+# Display plots
+plot1 + plot2
+```
+<img width="1440" height="600" alt="image" src="https://github.com/user-attachments/assets/d0555706-426a-4454-9762-062a81bf50c4" />
+
+**Results and Interpretation**
+
+The variable feature plot illustrates the relationship between average gene expression and standardized variance across cells.
+
+- **Highly variable genes (HVGs):** Genes showing greater expression variability than expected for their average expression level.
+- **Non-variable genes:** Genes with relatively lower standardized variability.
+- **Top 20 HVGs:** The most highly variable genes, highlighted and labeled in the plot.
+
+The selected 3,000 HVGs will be used in subsequent dimensionality reduction and clustering analyses to characterize cellular heterogeneity.
+
+
 ### Step 5. Data Scaling
 <a id="top"></a>
 
