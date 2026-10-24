@@ -397,6 +397,7 @@ ElbowPlot(
 )
 ```
 <img width="960" height="960" alt="image" src="https://github.com/user-attachments/assets/2c8e7803-9c5a-4b1a-ac73-aa32bd7a0966" />
+
 **Interpretation**
 
 The elbow plot shows how the standard deviation decreases across successive PCs.
@@ -476,9 +477,75 @@ Examining the gene contributions helps assess whether individual PCs capture bio
 <img width="960" height="960" alt="image" src="https://github.com/user-attachments/assets/3107b7ea-02b8-44ee-aff2-ba47fed2770b" />
 
 
-
 ### Step 7. Non-linear Dimensionality Reduction
 <a id="top"></a>
+
+Non-linear dimensionality reduction was performed using **t-distributed Stochastic Neighbor Embedding (t-SNE)** and **Uniform Manifold Approximation and Projection (UMAP)** to visualize cellular heterogeneity in two-dimensional space.
+
+Both methods use the principal components obtained from PCA to generate low-dimensional representations of cells while aiming to preserve local neighborhood relationships.
+
+#### 7.1. Run t-SNE and UMAP
+
+The first 20 principal components were used to construct t-SNE and UMAP embeddings.
+
+```r
+# Run t-SNE using the first 20 PCs
+seurat <- RunTSNE(
+  seurat,
+  dims = 1:20
+)
+
+# Run UMAP using the first 20 PCs
+seurat <- RunUMAP(
+  seurat,
+  dims = 1:20
+)
+```
+
+#### 7.2. Visualize t-SNE and UMAP
+
+The resulting embeddings were visualized side by side to compare the spatial organization of cells.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+# Set figure dimensions
+options(repr.plot.width = 12, repr.plot.height = 6)
+
+# t-SNE visualization
+plot1 <- TSNEPlot(seurat) +
+  ggtitle("t-SNE") +
+  theme(
+    aspect.ratio = 1,
+    legend.position = "none"
+  )
+
+# UMAP visualization
+plot2 <- UMAPPlot(seurat) +
+  ggtitle("UMAP") +
+  theme(
+    aspect.ratio = 1,
+    legend.position = "none"
+  )
+
+# Display plots
+plot1 + plot2
+```
+<img width="1440" height="720" alt="image" src="https://github.com/user-attachments/assets/5c26f460-96e8-4b2e-80df-987c7d0c55bf" />
+
+
+**Results and Interpretation**
+
+Both t-SNE and UMAP provide two-dimensional representations of cellular heterogeneity.
+
+- **Each point** represents an individual cell.
+- **Nearby cells** generally exhibit similar gene expression profiles in the reduced PCA space.
+- **Separated groups** may indicate transcriptionally distinct cell populations.
+- **t-SNE** emphasizes local neighborhood relationships.
+- **UMAP** also preserves local structure and may reveal broader patterns of cellular organization.
+
+These visualizations provide an initial overview of cellular heterogeneity before graph-based clustering and cell type annotation.
 
 ### Step 8. Cell Clustering
 <a id="top"></a>
