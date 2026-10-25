@@ -6214,7 +6214,8 @@ plot_communication_graph(
   is_cluster = TRUE
 )
 ```
-![Uploading image.png…]()
+<img width="1680" height="1440" alt="image" src="https://github.com/user-attachments/assets/701c6938-8cc2-4839-8b30-e1f0072eef6e" />
+
 
 **Results and Interpretation**
 
