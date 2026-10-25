@@ -3612,11 +3612,1174 @@ The reconstructed pseudotime distributions were compared with established develo
 **Note:** Pseudotime represents inferred transcriptional progression rather than chronological developmental time. In complex datasets containing multiple developmental lineages, a single pseudotime ordering may not adequately describe all differentiation trajectories.
 
 The direction and biological interpretation of each inferred trajectory depend on root cell selection and should be evaluated using independent biological evidence.
+### Part 4-3. RNA Velocity Analysis
+
+RNA velocity is a computational approach for estimating the direction of transcriptional changes in individual cells.
+
+Unlike conventional pseudotime analysis, which infers cellular progression from transcriptomic similarities, RNA velocity uses the relative abundance of **spliced and unspliced RNA** to estimate potential future transcriptional states.
+
+In this analysis, RNA velocity was performed on the human cerebral organoid dataset (DS1) using [scVelo](https://scvelo.readthedocs.io/) through the Python interface provided by `reticulate`.
+
+The stochastic RNA velocity model was applied to investigate potential developmental transitions among neural cell populations.
+
+#### 1. Load Spliced and Unspliced RNA Data
+
+The processed DS1 Seurat object and exon/intron count matrices generated using dropEst were loaded.
+
+```r
+library(Seurat)
+library(Matrix)
+library(reticulate)
+
+# Load processed DS1
+seurat_DS1 <- readRDS("DS1/seurat_obj_all.rds")
+
+# Load exon/intron count matrices
+mats <- readRDS("data/DS1/mats_dropest.rds")
+
+# Examine available matrices
+names(mats)
+
+# Verify required matrices
+stopifnot(
+  all(c("exon", "intron") %in% names(mats))
+)
+```
+
+The exon and intron matrices were used as the spliced and unspliced count inputs, respectively.
+
+#### 2. Align Genes and Cell Barcodes
+
+Gene and cell identifiers were matched between the Seurat object and the exon/intron matrices to ensure consistent ordering.
+
+```r
+# Extract DS1 cell identifiers
+cells <- colnames(seurat_DS1)
+
+# Verify barcode matching
+stopifnot(
+  all(cells %in% colnames(mats$exon)),
+  all(cells %in% colnames(mats$intron))
+)
+
+# Identify shared genes
+shared_genes <- intersect(
+  rownames(mats$exon),
+  rownames(mats$intron)
+)
+
+stopifnot(length(shared_genes) > 0L)
+
+# Extract aligned matrices
+spliced <- mats$exon[
+  shared_genes,
+  cells,
+  drop = FALSE
+]
+
+unspliced <- mats$intron[
+  shared_genes,
+  cells,
+  drop = FALSE
+]
+
+# Verify matrix consistency
+stopifnot(
+  !anyDuplicated(shared_genes),
+  !anyDuplicated(cells),
+  identical(
+    dimnames(spliced),
+    dimnames(unspliced)
+  )
+)
+
+# Examine matrix dimensions
+dim(spliced)
+dim(unspliced)
+```
+
+This step ensures that the spliced and unspliced matrices contain the same genes and cells in identical order.
+
+#### 3. Configure the Python Environment
+
+The Python environment containing AnnData, Scanpy, and scVelo was configured using `reticulate`.
+
+```r
+library(reticulate)
+
+# Select Python environment
+reticulate::use_python(
+  "/home/admin1/miniconda3/envs/r-rnaseq/bin/python",
+  required = TRUE
+)
+
+# Check Python configuration
+reticulate::py_config()
+
+# Verify required Python modules
+sapply(
+  c("anndata", "scanpy", "scvelo", "matplotlib"),
+  reticulate::py_module_available
+)
+```
+
+All required Python modules should be available before continuing.
+
+#### 4. Convert Seurat Data to AnnData
+
+The aligned spliced and unspliced matrices were converted into an AnnData object.
+
+Cell annotations, PCA embeddings, and UMAP coordinates from the Seurat object were preserved.
+
+```r
+# Import AnnData
+ad <- reticulate::import(
+  "anndata",
+  convert = FALSE
+)
+
+# Extract gene and cell identifiers
+velocity_genes <- rownames(spliced)
+velocity_cells <- colnames(spliced)
+
+# Align unspliced matrix
+unspliced <- unspliced[
+  velocity_genes,
+  velocity_cells,
+  drop = FALSE
+]
+
+# Prepare cell-by-gene matrix
+X_velocity <- t(spliced)
+
+# Cell metadata
+obs_velocity <- data.frame(
+  celltype = as.character(
+    Idents(seurat_DS1)[velocity_cells]
+  ),
+  row.names = velocity_cells
+)
+
+# Gene metadata
+var_velocity <- data.frame(
+  gene = velocity_genes,
+  row.names = velocity_genes
+)
+
+# Verify dimensions
+stopifnot(
+  nrow(obs_velocity) == nrow(X_velocity),
+  nrow(var_velocity) == ncol(X_velocity),
+  identical(
+    dimnames(spliced),
+    dimnames(unspliced)
+  )
+)
+
+# Create AnnData object
+adata_velocity <- ad$AnnData(
+  X = X_velocity,
+
+  obs = obs_velocity,
+
+  var = var_velocity,
+
+  layers = list(
+    spliced = X_velocity,
+    unspliced = t(unspliced)
+  ),
+
+  obsm = list(
+    X_pca = Embeddings(
+      seurat_DS1,
+      "pca"
+    )[velocity_cells, 1:20, drop = FALSE],
+
+    X_umap = Embeddings(
+      seurat_DS1,
+      "umap"
+    )[velocity_cells, , drop = FALSE]
+  )
+)
+
+# Convert cell type annotations to categorical data
+py <- reticulate::import_main(convert = FALSE)
+
+py$adata_velocity <- adata_velocity
+
+reticulate::py_run_string("
+adata_velocity.obs['celltype'] = (
+    adata_velocity.obs['celltype'].astype('category')
+)
+")
+```
+
+The AnnData object contains:
+
+- **X:** Spliced RNA counts.
+- **layers['spliced']:** Spliced RNA count matrix.
+- **layers['unspliced']:** Unspliced RNA count matrix.
+- **obs:** Cell type annotations.
+- **var:** Gene identifiers.
+- **obsm['X_pca']:** PCA embeddings from Seurat.
+- **obsm['X_umap']:** UMAP coordinates from Seurat.
+
+#### 5. Preprocess RNA Velocity Data
+
+RNA velocity preprocessing was performed using scVelo.
+
+This included gene filtering, normalization, highly variable gene identification, and neighborhood graph construction.
+
+```r
+# Configure non-interactive plotting backend
+reticulate::py_run_string("
+import matplotlib
+matplotlib.use('Agg')
+")
+
+# Import Scanpy and scVelo
+sc <- reticulate::import(
+  "scanpy",
+  convert = FALSE
+)
+
+scv <- reticulate::import(
+  "scvelo",
+  convert = FALSE
+)
+
+# Filter and normalize expression data
+scv$pp$filter_and_normalize(
+  adata_velocity,
+  min_shared_counts = 10L
+)
+
+# Identify 3,000 highly variable genes
+sc$pp$highly_variable_genes(
+  adata_velocity,
+  n_top_genes = 3000L,
+  flavor = "seurat",
+  subset = FALSE
+)
+
+# Construct nearest-neighbor graph
+sc$pp$neighbors(
+  adata_velocity,
+  n_neighbors = 30L,
+  use_rep = "X_pca",
+  random_state = 12345L
+)
+```
+
+#### 6. Calculate Expression Moments
+
+First- and second-order moments were calculated using the cell neighborhood graph.
+
+```r
+# Calculate moments
+scv$pp$moments(
+  adata_velocity,
+  n_neighbors = 30L,
+  n_pcs = 20L,
+  use_rep = "X_pca"
+)
+
+# Save preprocessed AnnData object
+adata_velocity$write_h5ad(
+  "DS1/velocity_before_fit.h5ad"
+)
+```
+
+The calculated moments provide locally smoothed estimates of spliced and unspliced RNA abundance for downstream velocity inference.
+
+#### 7. Estimate RNA Velocity
+
+RNA velocity was estimated using the stochastic model implemented in scVelo.
+
+```r
+# Estimate RNA velocity
+scv$tl$velocity(
+  adata_velocity,
+  mode = "stochastic"
+)
+
+# Construct velocity graph
+scv$tl$velocity_graph(
+  adata_velocity
+)
+```
+
+The stochastic model estimates transcriptional changes by examining spliced and unspliced RNA abundance and their covariance.
+
+The resulting velocity graph describes potential transitions between transcriptionally related cells.
+
+#### 8. Visualize RNA Velocity
+
+RNA velocity vectors were projected onto the UMAP embedding to visualize potential directions of cellular state transitions.
+
+```r
+# Make AnnData available in the Python session
+py <- reticulate::import_main(convert = FALSE)
+py$adata_velocity <- adata_velocity
+
+# Prepare matplotlib figure
+reticulate::py_run_string("
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(12, 9))
+")
+
+# Plot RNA velocity streamlines
+scv$pl$velocity_embedding_stream(
+  adata_velocity,
+  basis = "umap",
+  color = "celltype",
+  legend_loc = "right margin",
+  legend_fontsize = 10L,
+  title = "RNA velocity",
+  ax = py$ax,
+  show = FALSE
+)
+
+# Save figure
+reticulate::py_run_string("
+fig.savefig(
+    'DS1/scvelo_stream.png',
+    dpi=150,
+    bbox_inches='tight'
+)
+
+plt.close(fig)
+")
+
+# Display figure
+IRdisplay::display_png(
+  file = "DS1/scvelo_stream.png"
+)
+```
+
+#### 9. Save RNA Velocity Results
+
+The final AnnData object was saved for subsequent analyses.
+
+```r
+# Save RNA velocity results
+adata_velocity$write_h5ad(
+  "DS1/anndata_velocity_results.h5ad"
+)
+```
+
+**Results and Interpretation**
+
+RNA velocity analysis was performed using the stochastic model implemented in scVelo to investigate potential transcriptional state transitions among neural cell populations in DS1.
+
+The analysis generated:
+
+- **RNA velocity estimates:** Gene-level estimates of transcriptional changes.
+- **Velocity graph:** Estimated transition relationships between cells.
+- **Velocity stream plot:** A visualization of potential transcriptional progression on the UMAP embedding.
+
+The inferred velocity directions can be compared with previously identified neural cell populations and developmental markers to assess their consistency with potential neuronal differentiation processes.
+
+**Note:** RNA velocity provides model-based estimates of transcriptional dynamics rather than direct observations of cell fate transitions. The interpretation depends on the quality of spliced/unspliced quantification and the assumptions of the selected velocity model.
+### Part 4-3. RNA Velocity Analysis
+
+RNA velocity is a computational approach for estimating the direction of transcriptional changes in individual cells.
+
+Unlike conventional pseudotime analysis, which infers cellular progression from transcriptomic similarities, RNA velocity uses the relative abundance of **spliced and unspliced RNA** to estimate potential future transcriptional states.
+
+In this analysis, RNA velocity was performed on the human cerebral organoid dataset (DS1) using [scVelo](https://scvelo.readthedocs.io/) through the Python interface provided by `reticulate`.
+
+The stochastic RNA velocity model was applied to investigate potential developmental transitions among neural cell populations.
+
+#### 1. Load Spliced and Unspliced RNA Data
+
+The processed DS1 Seurat object and exon/intron count matrices generated using dropEst were loaded.
+
+```r
+library(Seurat)
+library(Matrix)
+library(reticulate)
+
+# Load processed DS1
+seurat_DS1 <- readRDS("DS1/seurat_obj_all.rds")
+
+# Load exon/intron count matrices
+mats <- readRDS("data/DS1/mats_dropest.rds")
+
+# Examine available matrices
+names(mats)
+
+# Verify required matrices
+stopifnot(
+  all(c("exon", "intron") %in% names(mats))
+)
+```
+
+The exon and intron matrices were used as the spliced and unspliced count inputs, respectively.
+
+#### 2. Align Genes and Cell Barcodes
+
+Gene and cell identifiers were matched between the Seurat object and the exon/intron matrices to ensure consistent ordering.
+
+```r
+# Extract DS1 cell identifiers
+cells <- colnames(seurat_DS1)
+
+# Verify barcode matching
+stopifnot(
+  all(cells %in% colnames(mats$exon)),
+  all(cells %in% colnames(mats$intron))
+)
+
+# Identify shared genes
+shared_genes <- intersect(
+  rownames(mats$exon),
+  rownames(mats$intron)
+)
+
+stopifnot(length(shared_genes) > 0L)
+
+# Extract aligned matrices
+spliced <- mats$exon[
+  shared_genes,
+  cells,
+  drop = FALSE
+]
+
+unspliced <- mats$intron[
+  shared_genes,
+  cells,
+  drop = FALSE
+]
+
+# Verify matrix consistency
+stopifnot(
+  !anyDuplicated(shared_genes),
+  !anyDuplicated(cells),
+  identical(
+    dimnames(spliced),
+    dimnames(unspliced)
+  )
+)
+
+# Examine matrix dimensions
+dim(spliced)
+dim(unspliced)
+```
+
+This step ensures that the spliced and unspliced matrices contain the same genes and cells in identical order.
+
+#### 3. Configure the Python Environment
+
+The Python environment containing AnnData, Scanpy, and scVelo was configured using `reticulate`.
+
+```r
+library(reticulate)
+
+# Select Python environment
+reticulate::use_python(
+  "/home/admin1/miniconda3/envs/r-rnaseq/bin/python",
+  required = TRUE
+)
+
+# Check Python configuration
+reticulate::py_config()
+
+# Verify required Python modules
+sapply(
+  c("anndata", "scanpy", "scvelo", "matplotlib"),
+  reticulate::py_module_available
+)
+```
+
+All required Python modules should be available before continuing.
+
+#### 4. Convert Seurat Data to AnnData
+
+The aligned spliced and unspliced matrices were converted into an AnnData object.
+
+Cell annotations, PCA embeddings, and UMAP coordinates from the Seurat object were preserved.
+
+```r
+# Import AnnData
+ad <- reticulate::import(
+  "anndata",
+  convert = FALSE
+)
+
+# Extract gene and cell identifiers
+velocity_genes <- rownames(spliced)
+velocity_cells <- colnames(spliced)
+
+# Align unspliced matrix
+unspliced <- unspliced[
+  velocity_genes,
+  velocity_cells,
+  drop = FALSE
+]
+
+# Prepare cell-by-gene matrix
+X_velocity <- t(spliced)
+
+# Cell metadata
+obs_velocity <- data.frame(
+  celltype = as.character(
+    Idents(seurat_DS1)[velocity_cells]
+  ),
+  row.names = velocity_cells
+)
+
+# Gene metadata
+var_velocity <- data.frame(
+  gene = velocity_genes,
+  row.names = velocity_genes
+)
+
+# Verify dimensions
+stopifnot(
+  nrow(obs_velocity) == nrow(X_velocity),
+  nrow(var_velocity) == ncol(X_velocity),
+  identical(
+    dimnames(spliced),
+    dimnames(unspliced)
+  )
+)
+
+# Create AnnData object
+adata_velocity <- ad$AnnData(
+  X = X_velocity,
+
+  obs = obs_velocity,
+
+  var = var_velocity,
+
+  layers = list(
+    spliced = X_velocity,
+    unspliced = t(unspliced)
+  ),
+
+  obsm = list(
+    X_pca = Embeddings(
+      seurat_DS1,
+      "pca"
+    )[velocity_cells, 1:20, drop = FALSE],
+
+    X_umap = Embeddings(
+      seurat_DS1,
+      "umap"
+    )[velocity_cells, , drop = FALSE]
+  )
+)
+
+# Convert cell type annotations to categorical data
+py <- reticulate::import_main(convert = FALSE)
+
+py$adata_velocity <- adata_velocity
+
+reticulate::py_run_string("
+adata_velocity.obs['celltype'] = (
+    adata_velocity.obs['celltype'].astype('category')
+)
+")
+```
+
+The AnnData object contains:
+
+- **X:** Spliced RNA counts.
+- **layers['spliced']:** Spliced RNA count matrix.
+- **layers['unspliced']:** Unspliced RNA count matrix.
+- **obs:** Cell type annotations.
+- **var:** Gene identifiers.
+- **obsm['X_pca']:** PCA embeddings from Seurat.
+- **obsm['X_umap']:** UMAP coordinates from Seurat.
+
+#### 5. Preprocess RNA Velocity Data
+
+RNA velocity preprocessing was performed using scVelo.
+
+This included gene filtering, normalization, highly variable gene identification, and neighborhood graph construction.
+
+```r
+# Configure non-interactive plotting backend
+reticulate::py_run_string("
+import matplotlib
+matplotlib.use('Agg')
+")
+
+# Import Scanpy and scVelo
+sc <- reticulate::import(
+  "scanpy",
+  convert = FALSE
+)
+
+scv <- reticulate::import(
+  "scvelo",
+  convert = FALSE
+)
+
+# Filter and normalize expression data
+scv$pp$filter_and_normalize(
+  adata_velocity,
+  min_shared_counts = 10L
+)
+
+# Identify 3,000 highly variable genes
+sc$pp$highly_variable_genes(
+  adata_velocity,
+  n_top_genes = 3000L,
+  flavor = "seurat",
+  subset = FALSE
+)
+
+# Construct nearest-neighbor graph
+sc$pp$neighbors(
+  adata_velocity,
+  n_neighbors = 30L,
+  use_rep = "X_pca",
+  random_state = 12345L
+)
+```
+
+#### 6. Calculate Expression Moments
+
+First- and second-order moments were calculated using the cell neighborhood graph.
+
+```r
+# Calculate moments
+scv$pp$moments(
+  adata_velocity,
+  n_neighbors = 30L,
+  n_pcs = 20L,
+  use_rep = "X_pca"
+)
+
+# Save preprocessed AnnData object
+adata_velocity$write_h5ad(
+  "DS1/velocity_before_fit.h5ad"
+)
+```
+
+The calculated moments provide locally smoothed estimates of spliced and unspliced RNA abundance for downstream velocity inference.
+
+#### 7. Estimate RNA Velocity
+
+RNA velocity was estimated using the stochastic model implemented in scVelo.
+
+```r
+# Estimate RNA velocity
+scv$tl$velocity(
+  adata_velocity,
+  mode = "stochastic"
+)
+
+# Construct velocity graph
+scv$tl$velocity_graph(
+  adata_velocity
+)
+```
+
+The stochastic model estimates transcriptional changes by examining spliced and unspliced RNA abundance and their covariance.
+
+The resulting velocity graph describes potential transitions between transcriptionally related cells.
+
+#### 8. Visualize RNA Velocity
+
+RNA velocity vectors were projected onto the UMAP embedding to visualize potential directions of cellular state transitions.
+
+```r
+# Make AnnData available in the Python session
+py <- reticulate::import_main(convert = FALSE)
+py$adata_velocity <- adata_velocity
+
+# Prepare matplotlib figure
+reticulate::py_run_string("
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(12, 9))
+")
+
+# Plot RNA velocity streamlines
+scv$pl$velocity_embedding_stream(
+  adata_velocity,
+  basis = "umap",
+  color = "celltype",
+  legend_loc = "right margin",
+  legend_fontsize = 10L,
+  title = "RNA velocity",
+  ax = py$ax,
+  show = FALSE
+)
+
+# Save figure
+reticulate::py_run_string("
+fig.savefig(
+    'DS1/scvelo_stream.png',
+    dpi=150,
+    bbox_inches='tight'
+)
+
+plt.close(fig)
+")
+
+# Display figure
+IRdisplay::display_png(
+  file = "DS1/scvelo_stream.png"
+)
+```
+<img width="2036" height="1098" alt="image" src="https://github.com/user-attachments/assets/e760a544-f4fe-4837-9240-a43c60f3ff3e" />
 
 
-### 4.3 RNA Velocity Analysis
+#### 9. Save RNA Velocity Results
 
-### 4.4 Trajectory Analysis with CellRank
+The final AnnData object was saved for subsequent analyses.
+
+```r
+# Save RNA velocity results
+adata_velocity$write_h5ad(
+  "DS1/anndata_velocity_results.h5ad"
+)
+```
+
+**Results and Interpretation**
+
+RNA velocity analysis was performed using the stochastic model implemented in scVelo to investigate potential transcriptional state transitions among neural cell populations in DS1.
+
+The analysis generated:
+
+- **RNA velocity estimates:** Gene-level estimates of transcriptional changes.
+- **Velocity graph:** Estimated transition relationships between cells.
+- **Velocity stream plot:** A visualization of potential transcriptional progression on the UMAP embedding.
+
+The inferred velocity directions can be compared with previously identified neural cell populations and developmental markers to assess their consistency with potential neuronal differentiation processes.
+
+**Note:** RNA velocity provides model-based estimates of transcriptional dynamics rather than direct observations of cell fate transitions. The interpretation depends on the quality of spliced/unspliced quantification and the assumptions of the selected velocity model.
+#### 4.3.2. Velocity Pseudotime and Latent Time Analysis
+
+RNA velocity provides information about the predicted direction of transcriptional changes. To further investigate potential developmental progression, two complementary approaches were applied using scVelo:
+
+1. **Velocity pseudotime:** Estimates the relative ordering of cells based on transitions inferred from the velocity graph.
+2. **Latent time:** Estimates a shared internal transcriptional time by fitting a dynamical model of RNA splicing kinetics.
+
+These approaches provide complementary perspectives on cellular differentiation and developmental trajectories.
+
+**1. Recover Transcriptional Dynamics**
+
+The dynamical model estimates gene-specific transcription, splicing, and degradation kinetics.
+
+```r
+# Recover transcriptional dynamics
+scv$tl$recover_dynamics(
+  adata_velocity,
+  n_jobs = 2L
+)
+
+# Estimate RNA velocity using the dynamical model
+scv$tl$velocity(
+  adata_velocity,
+  mode = "dynamical"
+)
+
+# Reconstruct the velocity graph
+scv$tl$velocity_graph(
+  adata_velocity
+)
+```
+
+**2. Calculate Velocity Pseudotime**
+
+Velocity pseudotime estimates the relative ordering of cells using the directed velocity graph.
+
+```r
+# Calculate velocity pseudotime
+scv$tl$velocity_pseudotime(
+  adata_velocity
+)
+```
+
+Unlike conventional diffusion pseudotime, velocity pseudotime incorporates the direction of predicted cellular transitions and can infer candidate starting states.
+
+**3. Calculate Latent Time**
+
+Latent time is estimated from the fitted dynamical model and represents a relative transcriptional progression inferred from gene expression kinetics.
+
+```r
+# Estimate latent time
+scv$tl$latent_time(
+  adata_velocity
+)
+```
+
+**4. Transfer Results to the Seurat Object**
+
+The calculated pseudotime values were transferred from AnnData to the original Seurat object using cell barcodes to ensure correct alignment.
+
+```r
+library(Seurat)
+library(reticulate)
+
+# Retrieve metadata from AnnData
+obs <- reticulate::py_to_r(
+  adata_velocity$obs
+)
+
+# Check required columns
+stopifnot(
+  all(c(
+    "velocity_pseudotime",
+    "latent_time"
+  ) %in% colnames(obs))
+)
+
+# Verify that all Seurat cells are present
+stopifnot(
+  !anyDuplicated(rownames(obs)),
+  all(colnames(seurat_DS1) %in% rownames(obs))
+)
+
+# Transfer velocity pseudotime
+seurat_DS1$velocity_pseudotime <-
+  obs[
+    colnames(seurat_DS1),
+    "velocity_pseudotime"
+  ]
+
+# Transfer latent time
+seurat_DS1$latent_time <-
+  obs[
+    colnames(seurat_DS1),
+    "latent_time"
+  ]
+```
+
+**5. Visualize Velocity Pseudotime and Latent Time**
+
+The inferred temporal ordering was visualized on the previously generated UMAP embedding.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+options(
+  repr.plot.width = 14,
+  repr.plot.height = 6
+)
+
+FeaturePlot(
+  seurat_DS1,
+  features = c(
+    "velocity_pseudotime",
+    "latent_time"
+  ),
+  reduction = "umap",
+  ncol = 2,
+  order = TRUE,
+  cols = c("#E5E5E5", "#8872BD")
+) & NoAxes()
+```
+<img width="1680" height="720" alt="image" src="https://github.com/user-attachments/assets/423d9e45-6b8e-48c8-80e2-cd0762770324" />
+
+**Results and Interpretation**
+
+Both approaches provide estimates of relative cellular progression, but they are based on different computational principles.
+
+| Method | Principle | Interpretation |
+|--------|-----------|----------------|
+| Velocity pseudotime | Directed transitions inferred from RNA velocity | Relative ordering along the velocity graph |
+| Latent time | Dynamical modeling of transcription and splicing kinetics | Estimated internal transcriptional progression |
+
+For the cerebral organoid dataset, these temporal estimates can be examined alongside established developmental markers:
+
+- **SOX2:** Neural progenitor cells.
+- **EOMES:** Cortical intermediate progenitors.
+- **DCX:** Immature neurons.
+- **NEUROD6:** Differentiating cortical excitatory neurons.
+
+A biologically plausible trajectory would show neural progenitor populations at earlier inferred states, followed by intermediate progenitors and more differentiated neuronal populations.
+
+Agreement between the inferred temporal ordering and developmental marker expression would provide supporting evidence for the reconstructed differentiation trajectory.
+
+However, both methods estimate relative transcriptional progression and should not be interpreted as direct measurements of developmental time. Their reliability depends on the underlying RNA velocity estimates and the biological validity of the inferred transitions.
+
+---
+
+**6. Save the Results**
+
+```r
+# Save AnnData containing velocity results
+adata_velocity$write_h5ad(
+  "DS1/velocity_results.h5ad"
+)
+
+# Save Seurat object with velocity metadata
+saveRDS(
+  seurat_DS1,
+  "DS1/seurat_obj_with_velocity.rds"
+)
+```
+
+The resulting files contain:
+
+- `velocity_results.h5ad`: AnnData object containing the fitted dynamical model, velocity graph, velocity pseudotime, and latent time.
+- `seurat_obj_with_velocity.rds`: Seurat object containing the original analysis and the two newly inferred temporal variables.
+
+These objects can be reused for further trajectory analysis and visualization.
+
+### Part 4-4. Trajectory Analysis with CellRank
+
+RNA velocity provides information about the predicted direction of cellular transcriptional changes. However, identifying potential developmental trajectories and terminal cell states requires further analysis.
+
+[CellRank](https://cellrank.readthedocs.io/) is a computational framework for studying cellular differentiation by modeling cell-to-cell transition probabilities.
+
+In this analysis, CellRank was applied to the DS1 cerebral organoid dataset using RNA velocity results generated with scVelo.
+
+The analysis consisted of four main steps:
+
+1. Construct cell-to-cell transition matrices.
+2. Combine RNA velocity and transcriptomic connectivity.
+3. Identify macrostates using the GPCCA estimator.
+4. Predict potential terminal cell states.
+
+#### 4.4.1. Load RNA Velocity Results
+
+The AnnData object containing the previously calculated RNA velocity results was used as input.
+
+```r
+library(reticulate)
+
+# Configure Python before initializing reticulate
+# Use the same environment as the RNA velocity analysis
+Sys.setenv(
+  RETICULATE_PYTHON =
+    "/home/admin1/miniconda3/envs/r-rnaseq/bin/python"
+)
+
+# Import Python packages and load data
+py_run_string("
+import matplotlib
+matplotlib.use('Agg')
+
+import scanpy as sc
+import cellrank as cr
+import matplotlib.pyplot as plt
+import io
+
+# Load RNA velocity results
+adata_cr = sc.read_h5ad(
+    'DS1/velocity_results.h5ad'
+)
+
+# Convert cell annotations to categorical format
+adata_cr.obs['celltype'] = (
+    adata_cr.obs['celltype'].astype('category')
+)
+
+# Verify required data
+assert 'velocity' in adata_cr.layers
+assert 'connectivities' in adata_cr.obsp
+assert 'X_umap' in adata_cr.obsm
+
+print(adata_cr)
+")
+```
+
+The input AnnData object contains RNA velocity estimates, neighborhood information, UMAP coordinates, and cell-type annotations required for downstream trajectory analysis.
+
+#### 4.4.2. Construct Cell Transition Matrices
+
+CellRank estimates cell-to-cell transition probabilities using information derived from RNA velocity and transcriptomic similarity.
+
+Two kernels were constructed:
+
+- **VelocityKernel:** Estimates directed transition probabilities based on RNA velocity.
+- **ConnectivityKernel:** Estimates transitions based on transcriptomic similarity between neighboring cells.
+
+```r
+py_run_string("
+# Velocity-based transition probabilities
+vk = cr.kernels.VelocityKernel(adata_cr)
+
+vk.compute_transition_matrix(
+    n_jobs=1
+)
+
+# Connectivity-based transition probabilities
+ck = cr.kernels.ConnectivityKernel(adata_cr)
+
+ck.compute_transition_matrix()
+
+# Combine both transition matrices
+combined_kernel = 0.8 * vk + 0.2 * ck
+
+print(combined_kernel)
+")
+```
+
+The combined kernel assigns:
+
+- **80% weight to RNA velocity**, emphasizing predicted transition direction.
+- **20% weight to transcriptomic connectivity**, incorporating similarities between neighboring cells.
+
+Combining these two sources of information can help improve the robustness of inferred cell transitions.
+
+#### 4.4.3. Identify Macrostates Using GPCCA
+
+The Generalized Perron Cluster Cluster Analysis (GPCCA) estimator was used to identify major dynamical states from the combined transition matrix.
+
+Macrostates represent groups of cells with similar long-term transition behavior and may correspond to initial, intermediate, or terminal developmental states.
+
+```r
+py_run_string("
+# Initialize the GPCCA estimator
+g = cr.estimators.GPCCA(combined_kernel)
+
+# Identify macrostates
+g.compute_macrostates(
+    n_states=8,
+    n_cells=30,
+    cluster_key='celltype'
+)
+
+print(g.macrostates)
+")
+```
+
+**Parameters:**
+
+- `n_states=8`: Specifies eight macrostates for the analysis.
+- `n_cells=30`: Selects up to 30 representative cells for each macrostate.
+- `cluster_key='celltype'`: Uses existing cell-type annotations to help identify and name macrostates.
+
+The resulting macrostates provide a simplified representation of the underlying cellular transition landscape.
+
+#### 4.4.4. Predict Terminal Cell States
+
+Terminal states represent populations predicted to occupy relatively stable endpoints of the inferred cellular dynamics.
+
+CellRank can identify these states by examining the stability of the computed macrostates.
+
+```r
+py_run_string("
+# Predict potential terminal states
+g.predict_terminal_states(
+    method='top_n',
+    n_states=6
+)
+
+# Examine predicted terminal states
+print(g.terminal_states)
+")
+```
+
+The `top_n` method selects six candidate terminal macrostates based on their estimated stability.
+
+The selected terminal states should be interpreted as computational predictions and evaluated using known developmental markers.
+
+#### 4.4.5. Visualize Terminal States
+
+Predicted terminal states were visualized on the UMAP embedding to examine their distribution across cerebral organoid cell populations.
+
+```r
+py_run_string("
+# Visualize predicted terminal states
+g.plot_macrostates(
+    which='terminal',
+    basis='umap',
+    show=False
+)
+
+# Adjust figure dimensions
+fig = plt.gcf()
+fig.set_size_inches(12, 9)
+
+# Save figure
+fig.savefig(
+    'DS1/cellrank_terminal_states.png',
+    dpi=150,
+    bbox_inches='tight'
+)
+
+# Create buffer for notebook display
+buffer = io.BytesIO()
+
+fig.savefig(
+    buffer,
+    format='png',
+    dpi=150,
+    bbox_inches='tight'
+)
+
+plt.close(fig)
+")
+
+# Display figure in R notebook
+png_bytes <- py_eval(
+  "list(buffer.getvalue())",
+  convert = TRUE
+)
+
+IRdisplay::display_png(
+  data = as.raw(unlist(png_bytes))
+)
+```
+<img width="1544" height="1130" alt="image" src="https://github.com/user-attachments/assets/96ed04ef-e265-4a41-a847-dadf7b4fc454" />
+
+**Results and Interpretation**
+
+CellRank was used to investigate potential terminal states within the cerebral organoid dataset.
+
+The analysis integrates predicted transcriptional changes from RNA velocity with neighborhood relationships derived from gene expression.
+
+GPCCA summarizes the cell transition matrix into macrostates, which are subsequently evaluated to identify potential terminal populations.
+
+The predicted terminal states can be compared with known developmental markers to assess their biological plausibility.
+
+For example:
+
+- **SOX2:** Neural progenitor populations.
+- **EOMES:** Cortical intermediate progenitors.
+- **DCX:** Immature neurons.
+- **NEUROD6:** Differentiating cortical excitatory neurons.
+
+Terminal states associated with differentiated neuronal populations would be consistent with potential developmental progression from neural progenitors toward more mature neuronal states.
+
+However, predicted terminal states do not necessarily correspond to fully mature or irreversible cell fates. Their interpretation depends on the quality of RNA velocity estimates, the selected model parameters, and the biological context.
+
+#### 4.4.6. Save CellRank Results
+
+The resulting AnnData object and fitted GPCCA estimator were saved for subsequent analysis.
+
+```r
+py_run_string("
+# Save AnnData with CellRank results
+adata_cr.write_h5ad(
+    'DS1/cellrank_results.h5ad'
+)
+
+# Save GPCCA estimator
+g.write(
+    'DS1/cellrank_gpcca.pkl'
+)
+")
+```
+
+**Output files**
+
+| File | Description |
+|------|-------------|
+| `cellrank_terminal_states.png` | UMAP visualization of predicted terminal states |
+| `cellrank_results.h5ad` | AnnData object containing CellRank analysis results |
+| `cellrank_gpcca.pkl` | Serialized GPCCA estimator for downstream analysis |
+
+These files can be used for further investigation of cellular differentiation, including fate probability estimation and identification of lineage-associated genes.
+
+---
+
+**References**
+
+- [CellRank documentation](https://cellrank.readthedocs.io/)
+- [CellRank: Computing Initial and Terminal States](https://cellrank.readthedocs.io/en/latest/notebooks/tutorials/estimators/600_initial_terminal.html)
+- [CellRank Meets RNA Velocity](https://cellrank.readthedocs.io/en/latest/notebooks/tutorials/kernels/200_rna_velocity.html)
 
 
 ### 4.5 Cell–Cell Communication Analysis
