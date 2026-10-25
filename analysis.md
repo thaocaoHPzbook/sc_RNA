@@ -2461,7 +2461,7 @@ The expression of SOX2, DCX, FOXG1, EMX1, DLX2, and LHX9 provides additional bio
 
 These analyses establish the reference dataset for subsequent transcriptomic similarity analysis and reference-based cell type annotation. 
 ### Method 1. Transcriptome Similarity
-#### 1-1. Transcriptome Similarity at the Cell Cluster Level
+#### 1.1 Cluster-level Similarity
 
 Reference-based cell type annotation can be performed by comparing the transcriptomic profiles of query cell clusters with those of annotated cell populations in a reference dataset.
 
@@ -2788,7 +2788,7 @@ These results can support the interpretation of cellular identities previously i
 
 **Note:** Transcriptomic similarity does not establish definitive cell type identity. Candidate annotations should be validated using known marker genes and additional biological evidence.
 
-#### 1-2. Cluster-level Similarity
+#### 1-2. Cell-level Similarity
 
 While cluster-level transcriptomic similarity analysis compares average gene expression profiles, cell-level analysis allows reference-based annotation of individual cells.
 
@@ -2796,7 +2796,7 @@ In this approach, the expression profile of each cell in DS1 was compared with t
 
 **Spearman correlation** was used to measure transcriptomic similarity. To improve computational efficiency, gene expression values were first converted to ranks, followed by sparse matrix correlation.
 
-#### 1. Cell-Level Similarity 
+#### 1. 
 
 The same informative genes selected in Method 1-1 were used for cell-level analysis.
 
