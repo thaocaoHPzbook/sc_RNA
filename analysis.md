@@ -4781,8 +4781,566 @@ These files can be used for further investigation of cellular differentiation, i
 - [CellRank: Computing Initial and Terminal States](https://cellrank.readthedocs.io/en/latest/notebooks/tutorials/estimators/600_initial_terminal.html)
 - [CellRank Meets RNA Velocity](https://cellrank.readthedocs.io/en/latest/notebooks/tutorials/kernels/200_rna_velocity.html)
 
+#### 4.4.7. Cell Fate Probability Analysis
 
-### 4.5 Cell–Cell Communication Analysis
+After identifying potential terminal states, CellRank was used to estimate the probability of individual cells transitioning toward different neuronal populations.
+
+Unlike the previous analysis, which automatically predicted terminal states using GPCCA, this analysis manually defined terminal states based on existing cell-type annotations.
+
+Five neuronal populations were selected as candidate terminal states:
+
+1. Midbrain-hindbrain boundary neurons
+2. Ventral telencephalic neurons
+3. Dorsal telencephalic neurons
+4. Diencephalic and midbrain excitatory neurons
+5. Diencephalic and midbrain inhibitory neurons
+
+This approach allows the investigation of potential differentiation trajectories toward biologically defined neuronal populations.
+
+**1. Define Terminal Cell Populations**
+
+```r
+py_run_string("
+import numpy as np
+import pandas as pd
+
+# Define candidate terminal cell types
+terminal_types = [
+    'Midbrain-hindbrain boundary neuron',
+    'Ventral telen. neuron',
+    'Dorsal telen. neuron',
+    'Dien. and midbrain excitatory neuron',
+    'Dien. and midbrain inhibitory neuron'
+]
+
+# Check whether annotations are available
+available = set(
+    adata_cr.obs['celltype'].dropna()
+)
+
+missing = [
+    ct for ct in terminal_types
+    if ct not in available
+]
+
+if missing:
+    raise ValueError(
+        'Missing cell-type annotations: '
+        + str(missing)
+    )
+
+# Select up to 30 cells per terminal population
+terminal_cells = {
+    ct: adata_cr.obs_names[
+        adata_cr.obs['celltype'] == ct
+    ][:30].tolist()
+    for ct in terminal_types
+}
+
+# Check the number of selected cells
+print(pd.Series({
+    ct: len(cells)
+    for ct, cells in terminal_cells.items()
+}))
+")
+```
+
+The selected cells were used to define terminal populations for the subsequent fate probability analysis.
+
+**2. Initialize a Separate GPCCA Estimator**
+
+A separate estimator was created to preserve the previous automatically inferred GPCCA results.
+
+```r
+py_run_string("
+# Initialize a separate GPCCA estimator
+g_manual = cr.estimators.GPCCA(
+    combined_kernel
+)
+
+# Assign manually selected terminal states
+g_manual.set_terminal_states(
+    terminal_cells
+)
+
+# Examine assigned terminal states
+print(g_manual.terminal_states)
+")
+```
+
+The new estimator uses the same combined transition kernel calculated from RNA velocity and transcriptomic connectivity.
+
+However, terminal states are now specified using the selected neuronal populations rather than predicted automatically.
+
+**3. Calculate Cell Fate Probabilities**
+
+CellRank models cellular transitions as a Markov process and calculates the probability of reaching each defined terminal state.
+
+```r
+py_run_string("
+# Calculate fate probabilities
+g_manual.compute_fate_probabilities(
+    solver='gmres',
+    use_petsc=False,
+    n_jobs=1
+)
+")
+```
+
+**Parameters:**
+
+- `solver='gmres'`: Uses an iterative numerical method to solve the system of equations.
+- `use_petsc=False`: Uses SciPy rather than PETSc for the numerical calculations.
+- `n_jobs=1`: Runs the solver using one worker.
+
+The resulting fate probabilities quantify the predicted likelihood of individual cells reaching each of the five candidate terminal populations.
+
+**4. Visualize Cell Fate Probabilities**
+
+The calculated probabilities were projected onto the UMAP embedding.
+
+```r
+py_run_string("
+import matplotlib.pyplot as plt
+import io
+
+# Plot fate probabilities
+g_manual.plot_fate_probabilities(
+    basis='umap',
+    same_plot=False,
+    show=False
+)
+
+# Retrieve figure
+fig = plt.gcf()
+
+# Save figure
+fig.savefig(
+    'DS1/cellrank_fate_probabilities.png',
+    dpi=150,
+    bbox_inches='tight'
+)
+
+# Prepare image for notebook display
+buffer = io.BytesIO()
+
+fig.savefig(
+    buffer,
+    format='png',
+    dpi=150,
+    bbox_inches='tight'
+)
+
+plt.close(fig)
+")
+
+# Display figure in R
+png_bytes <- py_eval(
+  "list(buffer.getvalue())",
+  convert = TRUE
+)
+
+IRdisplay::display_png(
+  data = as.raw(unlist(png_bytes))
+)
+```
+<img width="3543" height="1271" alt="image" src="https://github.com/user-attachments/assets/787ccf44-6cd6-426a-a2e3-7dfdd6a99564" />
+
+
+**Results and Interpretation**
+
+CellRank estimates the probability that individual cells will eventually reach each predefined terminal population under the inferred transition model.
+
+Each UMAP panel represents the fate probability associated with one neuronal population.
+
+- **Higher probability:** The cell is predicted to have a greater likelihood of reaching the corresponding terminal state.
+- **Lower probability:** The cell is predicted to have a lower likelihood of reaching that terminal state.
+- **Intermediate probability:** The cell may retain potential connections to multiple candidate terminal populations.
+
+For the cerebral organoid dataset, these probabilities can be used to investigate potential differentiation relationships between neural progenitor populations and distinct neuronal lineages.
+
+For example, neural progenitor cells showing elevated probabilities toward dorsal telencephalic neurons may be associated with a potential cortical neuronal differentiation trajectory.
+
+However, these probabilities represent computational predictions derived from the transition matrix and the predefined terminal states. They do not directly establish lineage relationships or experimentally confirm cell fate decisions.
+
+**5. Save the Results**
+
+```r
+py_run_string("
+# Save results from the manually defined terminal states
+adata_cr.write_h5ad(
+    'DS1/cellrank_manual_fate_results.h5ad'
+)
+
+# Save the fitted GPCCA estimator
+g_manual.write(
+    'DS1/cellrank_gpcca_manual.pkl'
+)
+")
+```
+
+
+**Output files**
+
+| File | Description |
+|------|-------------|
+| `cellrank_fate_probabilities.png` | UMAP visualization of fate probabilities |
+| `cellrank_manual_fate_results.h5ad` | AnnData object containing manually defined terminal states and fate probability results |
+| `cellrank_gpcca_manual.pkl` | Saved GPCCA estimator for further analysis |
+
+These results can support downstream investigation of lineage-associated gene expression and potential developmental trajectories.
+#### 4.4.8. Visualization of Cell Fate Probabilities in Seurat
+
+Following fate probability estimation with CellRank, the resulting probabilities were transferred from Python to R for visualization using Seurat.
+
+Each cell was assigned a probability of reaching each of the five predefined terminal neuronal populations.
+
+These probabilities were added to the Seurat metadata and visualized on the existing UMAP embedding.
+
+**1. Extract Fate Probabilities from CellRank**
+
+The CellRank results were converted into a pandas DataFrame, with cells as rows and terminal neuronal populations as columns.
+
+```r
+# Create a probability DataFrame in Python
+py_run_string("
+import pandas as pd
+import numpy as np
+
+prob = pd.DataFrame(
+    np.asarray(g_manual.fate_probabilities),
+    index=adata_cr.obs_names,
+    columns=g_manual.fate_probabilities.names
+)
+
+print(prob.head())
+")
+```
+
+Each value represents the estimated probability of a cell reaching the corresponding terminal state.
+
+**2. Transfer Fate Probabilities to R**
+
+```r
+library(reticulate)
+
+# Access Python objects
+py <- reticulate::import_main(
+  convert = FALSE
+)
+
+# Convert pandas DataFrame to R
+prob_df <- reticulate::py_to_r(
+  py$prob
+)
+
+# Examine probability matrix
+head(prob_df)
+dim(prob_df)
+```
+
+**3. Add Fate Probabilities to Seurat Metadata**
+
+Cell barcodes were used to ensure that the probability values were correctly matched to the corresponding cells.
+
+```r
+library(Seurat)
+
+# Load DS1 if not already available
+if (!exists("seurat_DS1")) {
+  seurat_DS1 <- readRDS(
+    "DS1/seurat_obj_all.rds"
+  )
+}
+
+# Verify matching cell identifiers
+stopifnot(
+  !anyDuplicated(rownames(prob_df)),
+  all(colnames(seurat_DS1) %in% rownames(prob_df))
+)
+
+# Match probability values to Seurat cell order
+prob_metadata <- prob_df[
+  colnames(seurat_DS1),
+  ,
+  drop = FALSE
+]
+
+# Create standardized metadata column names
+colnames(prob_metadata) <- paste0(
+  "fate_",
+  make.names(
+    colnames(prob_metadata),
+    unique = TRUE
+  )
+)
+
+# Add probabilities to Seurat metadata
+seurat_DS1 <- AddMetaData(
+  seurat_DS1,
+  metadata = prob_metadata
+)
+
+# Verify added metadata
+head(
+  seurat_DS1[[]][
+    ,
+    colnames(prob_metadata),
+    drop = FALSE
+  ]
+)
+```
+
+**4. Visualize Fate Probabilities on UMAP**
+
+The inferred probabilities were visualized using Seurat's `FeaturePlot()` function.
+
+A common color scale ranging from 0 to 1 was applied to facilitate comparisons between different neuronal lineages.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+# Set figure dimensions
+options(
+  repr.plot.width = 16,
+  repr.plot.height = 8
+)
+
+# Visualize fate probabilities
+FeaturePlot(
+  seurat_DS1,
+  features = colnames(prob_metadata),
+  reduction = "umap",
+  ncol = 3,
+  min.cutoff = 0,
+  max.cutoff = 1,
+  keep.scale = "all",
+  cols = c(
+    "#EEEEEE",
+    "#A391CB",
+    "#5E3C99"
+  ),
+  pt.size = 0.4,
+  order = TRUE
+)
+```
+<img width="1920" height="960" alt="image" src="https://github.com/user-attachments/assets/0c325c2c-7237-46b9-8906-c4b137e66409" />
+
+**Results and Interpretation**
+
+The UMAP visualizations display the estimated probability of individual cells reaching each predefined neuronal terminal state.
+
+- **Low probability (light gray):** Cells with a low predicted likelihood of reaching the corresponding terminal population.
+- **Intermediate probability (light purple):** Cells with intermediate predicted lineage potential.
+- **High probability (dark purple):** Cells with a high predicted likelihood of reaching the corresponding terminal population.
+
+Comparing these probability distributions across cell populations can provide insights into potential lineage relationships and differentiation patterns within the cerebral organoid dataset.
+
+For example, neural progenitor populations showing higher probabilities toward dorsal telencephalic neurons may indicate potential involvement in cortical neuronal differentiation.
+
+However, these results represent model-based predictions rather than experimentally validated cell fate decisions.
+
+**5. Save the Updated Seurat Object**
+
+```r
+# Save Seurat object with fate probabilities
+saveRDS(
+  seurat_DS1,
+  "DS1/seurat_obj_with_fate_probabilities.rds"
+)
+```
+
+The saved object retains the original Seurat analysis and the newly calculated fate probabilities for downstream visualization and analysis.
+
+---
+
+### Part 4-5. Cell–Cell Communication Analysis
+
+Cell–cell communication plays an important role in coordinating cellular activities, tissue development, and differentiation.
+
+Single-cell RNA-seq data can be used to investigate potential interactions between cell populations by examining the expression of ligand–receptor pairs.
+
+In this section, the DS4 dataset was used to explore potential communication networks among annotated cell populations.
+
+#### 4.5.1. Load and Prepare the DS4 Dataset
+
+**1. Check Input Files**
+
+The DS4 dataset consists of a gene expression count matrix, cell metadata, and gene annotation information.
+
+```r
+# Define input files
+files_DS4 <- c(
+  "data/DS4/matrix.mtx.gz",
+  "data/DS4/metadata.tsv.gz",
+  "data/DS4/features.tsv.gz"
+)
+
+# Check file availability
+setNames(
+  file.exists(files_DS4),
+  files_DS4
+)
+```
+
+All required files should be available before proceeding.
+
+**2. Import Gene Expression Data**
+
+```r
+library(Seurat)
+library(Matrix)
+library(patchwork)
+
+# Read count matrix
+counts_DS4 <- readMM(
+  "data/DS4/matrix.mtx.gz"
+)
+
+# Read cell metadata
+metadata_DS4 <- read.delim(
+  "data/DS4/metadata.tsv.gz",
+  header = TRUE,
+  row.names = 1,
+  check.names = FALSE
+)
+
+# Read gene information
+features_DS4 <- read.delim(
+  "data/DS4/features.tsv.gz",
+  header = FALSE
+)
+
+# Examine input structure
+head(metadata_DS4)
+head(features_DS4)
+```
+
+**3. Validate and Assign Gene and Cell Identifiers**
+
+```r
+# Verify matrix dimensions and metadata
+stopifnot(
+  nrow(counts_DS4) == nrow(features_DS4),
+  ncol(counts_DS4) == nrow(metadata_DS4),
+  "Cell_type" %in% colnames(metadata_DS4)
+)
+
+# Assign gene names and cell barcodes
+dimnames(counts_DS4) <- list(
+  as.character(features_DS4[[1]]),
+  rownames(metadata_DS4)
+)
+
+# Check for duplicated identifiers
+stopifnot(
+  !anyDuplicated(rownames(counts_DS4)),
+  !anyDuplicated(colnames(counts_DS4))
+)
+```
+
+The resulting expression matrix contains genes as rows and individual cells as columns.
+
+**4. Create a Seurat Object**
+
+```r
+# Create Seurat object
+seurat_DS4 <- CreateSeuratObject(
+  counts = counts_DS4,
+  meta.data = metadata_DS4,
+  project = "DS4"
+)
+
+# Normalize gene expression
+seurat_DS4 <- NormalizeData(
+  seurat_DS4
+)
+
+# Examine annotated cell populations
+table(seurat_DS4$Cell_type)
+```
+
+The `Cell_type` metadata provides the existing cell population annotations used for subsequent communication analysis.
+
+#### 4.5.2. Dimensionality Reduction and Visualization
+
+To explore the transcriptional heterogeneity of DS4, highly variable genes were identified, followed by data scaling, PCA, and UMAP.
+
+**1. Identify Highly Variable Genes**
+
+```r
+# Select 3,000 highly variable genes
+seurat_DS4 <- FindVariableFeatures(
+  seurat_DS4,
+  nfeatures = 3000
+)
+```
+
+**2. Perform Data Scaling and PCA**
+
+```r
+# Scale expression data
+seurat_DS4 <- ScaleData(
+  seurat_DS4
+)
+
+# Perform PCA
+seurat_DS4 <- RunPCA(
+  seurat_DS4,
+  npcs = 50
+)
+```
+
+**3. Calculate UMAP Embedding**
+
+The first 20 principal components were used to construct a two-dimensional UMAP representation.
+
+```r
+# Run UMAP
+seurat_DS4 <- RunUMAP(
+  seurat_DS4,
+  dims = 1:20,
+  seed.use = 12345
+)
+```
+
+**4. Visualize Annotated Cell Types**
+
+```r
+# Set figure dimensions
+options(
+  repr.plot.width = 12,
+  repr.plot.height = 8
+)
+
+# Visualize annotated cell populations
+DimPlot(
+  seurat_DS4,
+  reduction = "umap",
+  group.by = "Cell_type",
+  label = TRUE,
+  repel = TRUE,
+  pt.size = 0.4
+) +
+  NoAxes() +
+  NoLegend()
+```
+<img width="1440" height="960" alt="image" src="https://github.com/user-attachments/assets/0f83c93b-b3bb-4bfe-8035-96988bd21506" />
+
+**Results and Interpretation**
+
+The UMAP visualization provides an overview of the transcriptional heterogeneity within the DS4 dataset.
+
+Cells are colored according to their existing `Cell_type` annotations, allowing the distribution of different cell populations to be examined.
+
+The visualization can help identify transcriptionally distinct populations and evaluate whether cells with the same annotations occupy similar regions of the embedding.
+
+These annotated populations will subsequently be used to investigate potential cell–cell communication through ligand–receptor interactions.
+
+It is important to note that UMAP proximity alone does not establish direct biological interactions between cell populations.
+
+---
 
 
 
