@@ -2916,17 +2916,703 @@ This approach allows cell-level comparisons without relying exclusively on clust
 
 **Note:** Maximum-correlation assignment does not account for uncertainty in cell type predictions. Closely related cell types may exhibit similar transcriptional signatures, potentially leading to ambiguous assignments. Therefore, the resulting annotations should be interpreted alongside canonical marker expression and other supporting evidence.
 
+#### 4. Summarize Cell-Level Similarity Across DS1 Cell Populations
+
+To investigate transcriptomic similarities at the population level, cell-level correlation coefficients were standardized and summarized according to the existing DS1 cell annotations.
+
+For each DS1 cell, correlation coefficients across reference cell types were standardized using Z-score transformation.
+
+The standardized scores were then averaged within each DS1 cell population.
+
+**1. Standardize Cell-Level Correlations**
+
+```r
+# Standardize correlations across reference cell types
+# separately for each DS1 cell
+corr2ref_scaled <- scale(t(corr2ref_cell))
+
+# Extract original DS1 annotations
+cell_groups <- Idents(seurat_DS1)[
+  colnames(corr2ref_scaled)
+]
+
+# Identify cell populations
+group_names <- levels(droplevels(cell_groups))
+```
+
+The standardized scores describe the relative similarity of each DS1 cell to different reference cell types.
+
+**2. Calculate Average Similarity by Cell Population**
+
+```r
+# Average standardized similarity within each DS1 group
+corr2ref_sum2cl <- t(
+  sapply(group_names, function(cl) {
+    rowMeans(
+      corr2ref_scaled[
+        , cell_groups == cl,
+        drop = FALSE
+      ]
+    )
+  })
+)
+
+# Assign row and column names
+rownames(corr2ref_sum2cl) <- group_names
+colnames(corr2ref_sum2cl) <- colnames(corr2ref_cell)
+
+# Examine the resulting matrix
+round(corr2ref_sum2cl, 3)
+```
+
+The resulting matrix contains:
+
+- **Rows:** Original DS1 cell populations.
+- **Columns:** Annotated reference cell types.
+- **Values:** Average standardized transcriptomic similarity scores.
+
+**3. Hierarchical Clustering**
+
+Hierarchical clustering was applied to organize DS1 populations and reference cell types according to their similarity patterns.
+
+```r
+# Hierarchical clustering
+hc_row <- hclust(dist(corr2ref_sum2cl))
+hc_col <- hclust(dist(t(corr2ref_sum2cl)))
+
+# Reorder similarity matrix
+mat <- corr2ref_sum2cl[
+  hc_row$order,
+  hc_col$order,
+  drop = FALSE
+]
+
+nr <- nrow(mat)
+nc <- ncol(mat)
+
+# Prepare heatmap data
+heat_data <- expand.grid(
+  row = seq_len(nr),
+  col = seq_len(nc)
+)
+
+heat_data$value <- as.vector(mat)
+```
+
+**4. Visualize Standardized Transcriptomic Similarity**
+
+A hierarchically clustered heatmap was generated to visualize the relative similarities between DS1 cell populations and reference cell types.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+# Heatmap
+p_heat <- ggplot(
+  heat_data,
+  aes(col, nr + 1 - row, fill = value)
+) +
+  geom_tile() +
+  scale_x_continuous(
+    breaks = seq_len(nc),
+    labels = colnames(mat),
+    limits = c(0.5, nc + 0.5),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    breaks = seq_len(nr),
+    labels = rev(rownames(mat)),
+    limits = c(0.5, nr + 0.5),
+    expand = c(0, 0),
+    position = "right"
+  ) +
+  scale_fill_gradient2(
+    low = "#098aca",
+    mid = "#FAF7F2",
+    high = "#c91830",
+    midpoint = 0,
+    name = "Scaled\nsimilarity"
+  ) +
+  labs(x = NULL, y = NULL) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 90,
+      hjust = 1,
+      vjust = 0.5
+    ),
+    axis.text.y = element_text(hjust = 0),
+    legend.position = "bottom"
+  )
+
+# Column dendrogram
+p_top <- ggplot(tree_segments(hc_col)) +
+  geom_segment(
+    aes(x, y, xend = xend, yend = yend),
+    linewidth = 0.4
+  ) +
+  scale_x_continuous(
+    limits = c(0.5, nc + 0.5),
+    expand = c(0, 0)
+  ) +
+  theme_void()
+
+# Row dendrogram
+p_left <- ggplot(tree_segments(hc_row)) +
+  geom_segment(
+    aes(
+      -y,
+      nr + 1 - x,
+      xend = -yend,
+      yend = nr + 1 - xend
+    ),
+    linewidth = 0.4
+  ) +
+  scale_y_continuous(
+    limits = c(0.5, nr + 0.5),
+    expand = c(0, 0)
+  ) +
+  theme_void()
+
+# Combine heatmap and dendrograms
+options(
+  repr.plot.width = 12,
+  repr.plot.height = 12
+)
+
+patchwork::wrap_plots(
+  A = p_top,
+  B = p_left,
+  C = p_heat,
+  design = "#A\nBC",
+  widths = c(1, 9),
+  heights = c(1, 8)
+)
+```
+<img width="1440" height="1440" alt="image" src="https://github.com/user-attachments/assets/0931c2d6-44d7-41f8-a3e0-5a072568341d" />
+
+**Results and Interpretation**
+
+Standardized cell-level transcriptomic similarity scores were summarized across the original DS1 cell populations.
+
+The resulting heatmap provides an overview of the relative transcriptional relationships between DS1 populations and annotated reference cell types.
+
+- **Positive scores:** Indicate higher-than-average similarity to a reference cell type relative to other reference types.
+- **Negative scores:** Indicate lower-than-average relative similarity.
+- **Hierarchical clustering:** Groups populations with similar reference similarity patterns.
+
+This analysis provides complementary evidence for evaluating the consistency between the original DS1 annotations and reference-based predictions.
+
+**Note:** Standardized similarity scores represent relative associations rather than raw Spearman correlation coefficients. Therefore, they should not be interpreted as direct correlation values.
+
 ### Method 2. Seurat Label Transfer
 <a id="top"></a>
 
 ## Part 4. Advanced scRNA-seq Analysis
-<a id="top"></a>
 
-### 4.1 Cluster Connectivity Analysis with PAGA
-<a id="top"></a>
+Beyond standard preprocessing, dimensionality reduction, clustering, and cell type annotation, additional computational approaches can be applied to investigate biological relationships between cell populations.
 
-### 4.2 Branched Trajectory and Pseudotime Analysis
-<a id="top"></a>
+Advanced scRNA-seq analyses include:
+
+- Trajectory inference and pseudotime analysis.
+- Cluster connectivity and branching analysis.
+- RNA velocity and cell fate prediction.
+- Cell-cell communication analysis.
+- Gene regulatory network inference.
+
+In this section, selected advanced methods were applied to the human cerebral organoid dataset (DS1) to explore potential relationships among neural cell populations.
+
+---
+
+### Part 4-1. Cluster Connectivity Analysis with PAGA
+
+**Partition-based Graph Abstraction (PAGA)** is a graph-based approach for investigating connectivity between cellular populations.
+
+While clustering identifies distinct cell populations, it does not directly describe their relationships. PAGA addresses this limitation by evaluating the connectivity between groups based on the single-cell neighborhood graph.
+
+The resulting graph provides a simplified representation of the relationships among cell populations, which may help identify potential developmental connections.
+
+PAGA was implemented using [Scanpy](https://scanpy.readthedocs.io/) in Python through the `reticulate` interface in R.
+
+#### 1. Configure the Python Environment
+
+The Python environment containing Scanpy and AnnData was configured using `reticulate`.
+
+```r
+library(reticulate)
+
+# Select Python environment
+reticulate::use_python(
+  "/home/admin1/miniconda3/envs/anndata-py311/bin/python",
+  required = TRUE
+)
+
+# Verify Python configuration
+reticulate::py_config()
+
+# Check required Python modules
+reticulate::py_module_available("scanpy")
+reticulate::py_module_available("anndata")
+```
+
+The Python environment must contain the required packages before running the analysis.
+
+#### 2. Load the Processed DS1 Dataset
+
+The previously processed DS1 Seurat object was loaded for PAGA analysis.
+
+```r
+library(Seurat)
+library(Matrix)
+
+# Load DS1
+seurat_DS1 <- readRDS("DS1/seurat_obj_all.rds")
+
+# Set RNA assay
+DefaultAssay(seurat_DS1) <- "RNA"
+
+# Join layers if using Seurat v5
+if (inherits(seurat_DS1[["RNA"]], "Assay5")) {
+  seurat_DS1 <- JoinLayers(
+    seurat_DS1,
+    assay = "RNA"
+  )
+}
+
+# Extract normalized expression
+expr <- GetAssayData(
+  seurat_DS1,
+  assay = "RNA",
+  layer = "data"
+)
+
+# Extract raw counts
+counts <- GetAssayData(
+  seurat_DS1,
+  assay = "RNA",
+  layer = "counts"
+)
+
+# Extract cell and gene identifiers
+cells <- colnames(expr)
+genes <- rownames(expr)
+```
+
+#### 3. Convert Seurat to AnnData
+
+The Seurat object was converted into an AnnData object to enable analysis with Scanpy.
+
+The AnnData object contains:
+
+- **X:** Log-normalized gene expression matrix.
+- **obs:** Cell-level metadata and annotations.
+- **var:** Gene identifiers.
+- **layers:** Raw count matrix.
+- **obsm:** PCA and UMAP embeddings.
+
+```r
+# Import Python AnnData module
+ad <- reticulate::import(
+  "anndata",
+  convert = FALSE
+)
+
+# Create AnnData object
+adata <- ad$AnnData(
+  X = t(expr),
+
+  obs = data.frame(
+    celltype = as.character(
+      Idents(seurat_DS1)[cells]
+    ),
+    row.names = cells
+  ),
+
+  var = data.frame(
+    row.names = genes
+  ),
+
+  layers = list(
+    counts = t(
+      counts[genes, cells, drop = FALSE]
+    )
+  ),
+
+  obsm = list(
+    X_pca = Embeddings(
+      seurat_DS1,
+      "pca"
+    )[cells, 1:20, drop = FALSE],
+
+    X_umap = Embeddings(
+      seurat_DS1,
+      "umap"
+    )[cells, , drop = FALSE]
+  )
+)
+
+# Convert annotations to categorical data
+adata$obs[["celltype"]] <- adata$obs[["celltype"]]$astype(
+  "category"
+)
+
+# Save AnnData object
+adata$write_h5ad("DS1/anndata_obj.h5ad")
+```
+
+#### 4. Construct the Neighborhood Graph
+
+A k-nearest-neighbor graph was constructed using the first 20 principal components.
+
+```r
+# Import Scanpy
+sc <- reticulate::import(
+  "scanpy",
+  convert = FALSE
+)
+
+# Load AnnData
+adata_DS1 <- sc$read_h5ad(
+  "DS1/anndata_obj.h5ad"
+)
+
+# Construct neighborhood graph
+sc$pp$neighbors(
+  adata_DS1,
+  n_neighbors = 20L,
+  use_rep = "X_pca"
+)
+```
+
+The neighborhood graph represents local transcriptional relationships between individual cells in PCA space.
+
+#### 5. Perform PAGA Analysis
+
+PAGA was applied to evaluate connectivity between the annotated DS1 cell populations.
+
+```r
+# Perform PAGA
+sc$tl$paga(
+  adata_DS1,
+  groups = "celltype"
+)
+
+# Save PAGA results
+adata_DS1$write_h5ad(
+  "DS1/anndata_paga.h5ad"
+)
+```
+
+PAGA summarizes the cell-level neighborhood graph into a population-level connectivity graph.
+
+#### 6. Visualize the PAGA Graph
+
+The PAGA graph was visualized to examine connectivity between neural cell populations.
+
+```r
+# Configure non-interactive plotting backend
+reticulate::py_run_string("
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+")
+
+# Generate PAGA graph
+sc$pl$paga(
+  adata_DS1,
+  color = "celltype",
+  fontsize = 10L,
+  frameon = FALSE,
+  show = FALSE
+)
+
+# Save figure
+reticulate::py_run_string("
+fig = plt.gcf()
+fig.set_size_inches(12, 9)
+fig.savefig(
+    'DS1/paga_connectivity.png',
+    dpi=180,
+    bbox_inches='tight'
+)
+")
+
+# Display figure in Jupyter
+IRdisplay::display_png(
+  file = "DS1/paga_connectivity.png"
+)
+```
+<img width="1708" height="1110" alt="image" src="https://github.com/user-attachments/assets/316fb7e0-022a-4322-a55d-c0f709e9bdc5" />
+
+**Results and Interpretation**
+
+PAGA was used to investigate transcriptional connectivity among annotated cell populations in DS1.
+
+The resulting graph represents:
+
+- **Nodes:** Annotated cell populations.
+- **Node sizes:** Relative numbers of cells within each population.
+- **Edges:** Connectivity between populations based on the single-cell neighborhood graph.
+- **Edge weights:** Strength of the inferred connectivity between populations.
+
+Stronger connections suggest that two populations share a greater degree of neighborhood connectivity in the analyzed transcriptional space.
+
+These relationships may provide insights into potential developmental associations between neural progenitors, intermediate progenitors, and differentiated neurons.
+
+**Note:** PAGA connectivity does not independently establish developmental direction or lineage ancestry. Additional evidence, such as pseudotime analysis or RNA velocity, is required to support directional interpretations.
+
+
+### Part 4-2. Pseudotime Reconstruction in Complex Cell Populations
+
+In Part 1, diffusion pseudotime (DPT) analysis was performed on a subset of dorsal telencephalic cells to investigate neuronal differentiation.
+
+However, developmental systems often contain multiple cell populations, branching trajectories, and distinct terminal states. Restricting the analysis to a single unbranched trajectory may exclude potentially informative relationships between populations.
+
+In this section, diffusion map and DPT analyses were applied to the **complete DS1 dataset** to explore transcriptional progression across multiple neural cell populations.
+
+Different root cell selection strategies were also examined to evaluate their influence on pseudotime reconstruction.
+
+#### 1. Construct a Diffusion Map Using All DS1 Cells
+
+The first 20 principal components were used to construct a diffusion map representing transcriptional relationships across the complete dataset.
+
+```r
+library(Seurat)
+library(destiny)
+library(ggplot2)
+
+# Load processed DS1
+seurat_DS1 <- readRDS("DS1/seurat_obj_all.rds")
+
+# Extract PCA embeddings
+pca_embeddings <- Embeddings(
+  seurat_DS1,
+  "pca"
+)[, 1:20, drop = FALSE]
+
+# Cell identifiers in PCA order
+pca_cells <- rownames(pca_embeddings)
+
+# Construct diffusion map
+set.seed(42)
+
+dm <- DiffusionMap(pca_embeddings)
+```
+
+#### 2. Calculate Diffusion Pseudotime
+
+An initial DPT analysis was performed without explicitly defining a biologically informed root cell.
+
+```r
+# Calculate DPT
+dpt <- DPT(dm)
+
+# Extract pseudotime
+dpt_values <- dpt$dpt
+
+# Convert to pseudotime ranks
+dpt_rank <- setNames(
+  rank(dpt_values, na.last = "keep"),
+  pca_cells
+)
+
+# Store pseudotime in Seurat metadata
+seurat_DS1$dpt <- dpt_rank[
+  colnames(seurat_DS1)
+]
+```
+
+**3. Visualize Pseudotime and Developmental Markers**
+
+The reconstructed pseudotime was visualized together with representative markers of neural progenitors and differentiating neurons.
+
+```r
+# Use RNA assay
+DefaultAssay(seurat_DS1) <- "RNA"
+
+# Set figure dimensions
+options(
+  repr.plot.width = 16,
+  repr.plot.height = 5
+)
+
+# Visualize pseudotime and marker expression
+FeaturePlot(
+  seurat_DS1,
+  features = c(
+    "dpt", "SOX2", "NHLH1", "DCX"
+  ),
+  reduction = "umap",
+  ncol = 4,
+  pt.size = 0.2,
+  order = TRUE,
+  cols = c("#E5E5E5", "#8872BD")
+) &
+  theme(
+    aspect.ratio = 1,
+    plot.title = element_text(
+      size = 15,
+      face = "bold",
+      hjust = 0.5
+    ),
+    axis.title = element_text(size = 10)
+  )
+```
+<img width="1920" height="600" alt="image" src="https://github.com/user-attachments/assets/2dec3f4f-0048-4b2f-9b3c-431eedd9fdcc" />
+
+
+**Interpretation**
+
+The expression of developmental markers provides biological context for interpreting the inferred pseudotime.
+
+- **SOX2:** Neural progenitor marker.
+- **NHLH1:** Associated with early neuronal differentiation.
+- **DCX:** Marker of immature neurons.
+
+Their expression patterns were examined to assess whether the inferred pseudotime was consistent with potential transitions from neural progenitors toward differentiating neurons.
+
+#### 4. Reconstruct Pseudotime Using Neural Progenitor Root Cells
+
+Because DPT depends on the selected starting point, an alternative analysis was performed using cells annotated as neural progenitors.
+
+Four neural progenitor populations were considered:
+
+```r
+# Neural progenitor populations
+npc_types <- c(
+  "Dorsal telen. NPC",
+  "G2M dorsal telen. NPC",
+  "Dien. and midbrain NPC",
+  "G2M Dien. and midbrain NPC"
+)
+
+# Match cell annotations to PCA order
+npc_labels <- Idents(seurat_DS1)[pca_cells]
+
+# Identify neural progenitor indices
+idx_NPC <- which(npc_labels %in% npc_types)
+
+# Check candidate cells
+length(idx_NPC)
+```
+
+Three neural progenitor cells were randomly selected as candidate trajectory tips.
+
+```r
+# Ensure sufficient NPC cells are available
+stopifnot(length(idx_NPC) >= 3)
+
+# Select candidate tips
+set.seed(12345)
+
+idx <- sample(idx_NPC, 3)
+
+# Reconstruct pseudotime
+dpt2 <- destiny::DPT(
+  dm,
+  tips = idx
+)
+
+# Extract pseudotime
+dpt2_values <- dpt2$dpt
+
+# Convert to ranks and preserve cell identifiers
+dpt2_rank <- setNames(
+  rank(dpt2_values, na.last = "keep"),
+  pca_cells
+)
+
+# Store in Seurat metadata
+seurat_DS1$dpt2 <- dpt2_rank[
+  colnames(seurat_DS1)
+]
+```
+
+#### 5. Refine Root Cell Selection
+
+An additional DPT reconstruction was performed using a neural progenitor cell selected from the beginning of the previously inferred pseudotime.
+
+```r
+# Identify NPC cells with valid pseudotime values
+idx_valid <- idx_NPC[
+  is.finite(
+    seurat_DS1$dpt2[pca_cells[idx_NPC]]
+  )
+]
+
+# Check candidate cells
+if (length(idx_valid) == 0L) {
+  stop("No neural progenitor cells with valid DPT values.")
+}
+
+# Select an early NPC according to dpt2
+root_idx <- idx_valid[
+  which.min(
+    seurat_DS1$dpt2[pca_cells[idx_valid]]
+  )
+]
+
+# Recalculate DPT
+dpt3 <- destiny::DPT(
+  dm,
+  tips = root_idx
+)
+
+# Extract pseudotime
+dpt3_values <- dpt3$dpt
+
+# Convert to ranks
+dpt3_rank <- setNames(
+  rank(dpt3_values, na.last = "keep"),
+  pca_cells
+)
+
+# Store in Seurat metadata
+seurat_DS1$dpt3 <- dpt3_rank[
+  colnames(seurat_DS1)
+]
+```
+
+#### 6. Compare Pseudotime Reconstructions
+
+The three pseudotime estimates were visualized on the original DS1 UMAP embedding.
+
+```r
+# Set figure dimensions
+options(
+  repr.plot.width = 18,
+  repr.plot.height = 5
+)
+
+# Compare pseudotime estimates
+FeaturePlot(
+  seurat_DS1,
+  features = c("dpt", "dpt2", "dpt3"),
+  reduction = "umap",
+  ncol = 3,
+  cols = c("#E6E6E6", "#8B75C9"),
+  order = TRUE
+)
+```
+<img width="2160" height="600" alt="image" src="https://github.com/user-attachments/assets/3d39e1e2-3d6d-4413-96a2-dab95db7e380" />
+
+**Results and Interpretation**
+
+Diffusion pseudotime analysis was applied to the complete DS1 dataset to investigate potential transcriptional progression across multiple neural cell populations.
+
+Three pseudotime reconstructions were examined:
+
+- **DPT:** Initial reconstruction using the default computational root selection.
+- **DPT2:** Reconstruction using selected neural progenitor cells as candidate tips.
+- **DPT3:** Reconstruction using a neural progenitor root selected according to DPT2.
+
+The reconstructed pseudotime distributions were compared with established developmental marker expression to evaluate their biological consistency.
+
+**Note:** Pseudotime represents inferred transcriptional progression rather than chronological developmental time. In complex datasets containing multiple developmental lineages, a single pseudotime ordering may not adequately describe all differentiation trajectories.
+
+The direction and biological interpretation of each inferred trajectory depend on root cell selection and should be evaluated using independent biological evidence.
+
 
 ### 4.3 RNA Velocity Analysis
 
