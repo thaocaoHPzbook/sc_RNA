@@ -2,17 +2,20 @@
 
 ## Overview
 
-This repository documents a reproducible analysis of publicly available
-single-cell RNA sequencing (scRNA-seq) datasets using R and Python.
+This repository presents a reproducible computational workflow for analyzing
+publicly available single-cell RNA sequencing (scRNA-seq) datasets using
+R and Python.
 
-The project aims to develop practical skills in scRNA-seq data processing,
-cellular heterogeneity analysis, cell type annotation, and the investigation
-of cellular dynamics and cell–cell interactions.
+The analysis focuses on characterizing cellular heterogeneity, identifying
+cell populations and their molecular signatures, investigating developmental
+trajectories, and exploring cell–cell communication.
 
-The workflow is primarily based on the
-[scRNA-seq Analysis Vignette](https://github.com/quadbio/scRNAseq_analysis_vignette),
-with additional implementations and modifications using Seurat, Scanpy,
-scVelo, CellRank, CellPhoneDB, and COMUNET.
+The workflow covers essential scRNA-seq processing and analysis steps,
+including quality control, normalization, dimensionality reduction,
+clustering, marker gene identification, and cell type annotation.
+It also incorporates advanced computational approaches for data integration,
+reference-based label transfer, RNA velocity, cell fate inference,
+and ligand–receptor interaction analysis.
 
 ## Analysis Workflow
 
