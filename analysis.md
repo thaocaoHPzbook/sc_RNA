@@ -2785,11 +2785,136 @@ These results can support the interpretation of cellular identities previously i
 
 **Note:** Transcriptomic similarity does not establish definitive cell type identity. Candidate annotations should be validated using known marker genes and additional biological evidence.
 
-#### 1.1 Cluster-level Similarity
-<a id="top"></a>
+### Method 1-2. Transcriptome Similarity at the Cell Level
 
-#### 1.2 Cell-level Similarity
-<a id="top"></a>
+While cluster-level transcriptomic similarity analysis compares average gene expression profiles, cell-level analysis allows reference-based annotation of individual cells.
+
+In this approach, the expression profile of each cell in DS1 was compared with the average expression profiles of annotated reference cell types.
+
+**Spearman correlation** was used to measure transcriptomic similarity. To improve computational efficiency, gene expression values were first converted to ranks, followed by sparse matrix correlation.
+
+#### 1. Calculate Cell-Level Transcriptomic Similarity
+
+The same informative genes selected in Method 1-1 were used for cell-level analysis.
+
+```r
+library(presto)
+library(qlcMatrix)
+library(Seurat)
+
+# Rank average expression profiles of reference cell types
+ranked_expr_ref <- apply(
+  avg_expr_ref[genes2cor, , drop = FALSE],
+  2,
+  rank
+)
+
+# Rank gene expression within individual DS1 cells
+ranked_expr_ds1 <- presto::rank_matrix(
+  expr_ds1[genes2cor, , drop = FALSE]
+)$X_ranked
+
+# Calculate correlations
+corr2ref_cell <- as.matrix(
+  qlcMatrix::corSparse(
+    ranked_expr_ds1,
+    ranked_expr_ref
+  )
+)
+
+# Assign cell and reference identifiers
+rownames(corr2ref_cell) <- colnames(expr_ds1)
+colnames(corr2ref_cell) <- colnames(avg_expr_ref)
+```
+
+The resulting correlation matrix contains:
+
+- **Rows:** Individual DS1 cells.
+- **Columns:** Annotated reference cell types.
+- **Values:** Spearman correlation coefficients.
+
+#### 2. Predict Cell Types Based on Maximum Correlation
+
+Each DS1 cell was assigned the reference cell type with the highest correlation coefficient.
+
+```r
+# Identify the most similar reference cell type
+ct_maxcor <- colnames(corr2ref_cell)[
+  apply(corr2ref_cell, 1, which.max)
+]
+
+# Match predictions to cell barcodes
+names(ct_maxcor) <- rownames(corr2ref_cell)
+
+# Store predictions in Seurat metadata
+seurat_DS1$celltype_maxcor <- ct_maxcor[
+  colnames(seurat_DS1)
+]
+
+# Examine predicted cell types
+table(seurat_DS1$celltype_maxcor)
+```
+
+These predictions provide candidate cell type annotations based on transcriptomic similarity to the reference dataset.
+
+#### 3. Visualize Predicted Cell Types
+
+The reference-based predictions were compared with the original cell annotations using UMAP.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+options(repr.plot.width = 18, repr.plot.height = 10)
+
+# Original cell annotations
+plot1 <- DimPlot(
+  seurat_DS1,
+  reduction = "umap",
+  label = TRUE,
+  repel = TRUE,
+  label.size = 6,
+  pt.size = 0.2
+) +
+  ggtitle("Original annotation") +
+  NoLegend()
+
+# Reference-based predictions
+plot2 <- DimPlot(
+  seurat_DS1,
+  reduction = "umap",
+  group.by = "celltype_maxcor",
+  label = TRUE,
+  repel = TRUE,
+  label.size = 6,
+  pt.size = 0.2
+) +
+  ggtitle("Prediction from reference") +
+  NoLegend()
+
+# Compare annotations
+(plot1 | plot2) &
+  theme(
+    aspect.ratio = 1,
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    )
+  )
+```
+<img width="2160" height="1200" alt="image" src="https://github.com/user-attachments/assets/4c3cc8ed-4feb-452f-ae29-b80253f964b9" />
+
+**Results and Interpretation**
+
+Cell-level transcriptomic similarity analysis was performed to predict the identities of individual cells in DS1 using an annotated reference dataset.
+
+Each cell was assigned a candidate identity based on the highest Spearman correlation with the reference cell type expression profiles.
+
+The predicted annotations were visualized alongside the original DS1 annotations to assess their consistency.
+
+This approach allows cell-level comparisons without relying exclusively on cluster-level average expression profiles.
+
+**Note:** Maximum-correlation assignment does not account for uncertainty in cell type predictions. Closely related cell types may exhibit similar transcriptional signatures, potentially leading to ambiguous assignments. Therefore, the resulting annotations should be interpreted alongside canonical marker expression and other supporting evidence.
 
 ### Method 2. Seurat Label Transfer
 <a id="top"></a>
