@@ -33,13 +33,13 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 - [Step 3. Comparison of Integration Methods](#step-3-comparison-of-integration-methods)
 
 ### Part 3. Reference-based Cell Type Annotation
-- [Step 0. Load Reference and Explore Reference Data](#step-0-load-reference-and-explore-reference-data)
-- [Method 1. Transcriptome Similarity](#method-1-transcriptome-similarity)
+- [Step 0. Load and Explore Reference Data](#step-0-load-and-explore-reference-data)
+- [Method 1-1. Transcriptome Similarity at the Cell Cluster Level](#method-1-transcriptome-similarity-at-the-cell-cluster-level)
   - [1.1 Cluster-level Similarity](#11-cluster-level-similarity)
   - [1.2 Cell-level Similarity](#12-cell-level-similarity)
 - [Method 2. Seurat Label Transfer](#method-2-seurat-label-transfer)
 
-### Part 4. Advanced scRNA-seq Analysis
+### Part 4. Advanced scRNA-seq AnalysisMethod 1-1. Transcriptome Similarity at the Cell Cluster Level
 - [4.1 Cluster Connectivity Analysis with PAGA](#41-cluster-connectivity-analysis-with-paga)
 - [4.2 Branched Trajectory and Pseudotime Analysis](#42-branched-trajectory-and-pseudotime-analysis)
 - [4.3 RNA Velocity Analysis](#43-rna-velocity-analysis)
