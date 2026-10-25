@@ -63,11 +63,3 @@ These datasets are reanalyzed for educational purposes and to explore
 computational approaches for investigating cellular heterogeneity,
 developmental trajectories, and intercellular communication.
 
-## Scope
-
-This project represents a computational reanalysis of existing public
-datasets. It does not involve the generation of new experimental data.
-
-The repository provides analysis scripts, methodological explanations,
-and visualization workflows to support reproducibility and further
-exploration of single-cell transcriptomic data.
