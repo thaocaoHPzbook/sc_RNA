@@ -18,8 +18,8 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 - [Step 7. Non-linear Dimensionality Reduction](#step-7-non-linear-dimensionality-reduction)
 - [Step 8. Cell Clustering](#step-8-cell-clustering)
 - [Step 9. Cell Type Annotation](#step-9-cell-type-annotation)
-- [Step 10. Pseudotime Analysis](#step-10-pseudotime-analysis)
-- [Step 11. Save Results](#step-11-save-results)
+- [Step 10. Pseudotemporal Cell Ordering](#step-10-pseudotemporal-cell-ordering)
+- [Step 11. Save The Results](#step-11-save-the-results)
 
 ### Part 2. Integration of Multiple scRNA-seq Datasets
 - [Step 0. Load Datasets](#step-0-load-datasets)
