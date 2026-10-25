@@ -34,7 +34,7 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 
 ### Part 3. Reference-based Cell Type Annotation
 - [Step 0. Load and Explore Reference Data](#step-0-load-and-explore-reference-data)
-- [Method 1-1. Transcriptome Similarity at the Cell Cluster Level](#method-1-transcriptome-similarity-at-the-cell-cluster-level)
+- [Method 1. Transcriptome Similarity](#method-1-transcriptome-similarity)
   - [1.1 Cluster-level Similarity](#11-cluster-level-similarity)
   - [1.2 Cell-level Similarity](#12-cell-level-similarity)
 - [Method 2. Seurat Label Transfer](#method-2-seurat-label-transfer)
@@ -2460,8 +2460,8 @@ UMAP visualizations were used to investigate:
 The expression of SOX2, DCX, FOXG1, EMX1, DLX2, and LHX9 provides additional biological context for evaluating reference cell identities.
 
 These analyses establish the reference dataset for subsequent transcriptomic similarity analysis and reference-based cell type annotation. 
-
-### Method 1-1. Transcriptome Similarity at the Cell Cluster Level
+### Method 1. Transcriptome Similarity
+#### 1-1. Transcriptome Similarity at the Cell Cluster Level
 
 Reference-based cell type annotation can be performed by comparing the transcriptomic profiles of query cell clusters with those of annotated cell populations in a reference dataset.
 
@@ -2788,7 +2788,7 @@ These results can support the interpretation of cellular identities previously i
 
 **Note:** Transcriptomic similarity does not establish definitive cell type identity. Candidate annotations should be validated using known marker genes and additional biological evidence.
 
-### Method 1-2. Transcriptome Similarity at the Cell Level
+#### 1-2. Cluster-level Similarity
 
 While cluster-level transcriptomic similarity analysis compares average gene expression profiles, cell-level analysis allows reference-based annotation of individual cells.
 
@@ -2796,7 +2796,7 @@ In this approach, the expression profile of each cell in DS1 was compared with t
 
 **Spearman correlation** was used to measure transcriptomic similarity. To improve computational efficiency, gene expression values were first converted to ranks, followed by sparse matrix correlation.
 
-#### 1. Calculate Cell-Level Transcriptomic Similarity
+#### 1. Cell-Level Similarity 
 
 The same informative genes selected in Method 1-1 were used for cell-level analysis.
 
