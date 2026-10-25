@@ -48,7 +48,7 @@ The analysis is organized into four main parts:
    - Cell fate and trajectory inference using CellRank
    - Cell–cell communication analysis using CellPhoneDB
    - Ligand–receptor interaction network analysis using COMUNET
-
+     
 ## Data Sources
 
 The analyses primarily use publicly available datasets from the following studies:
@@ -62,4 +62,12 @@ The analyses primarily use publicly available datasets from the following studie
 These datasets are reanalyzed for educational purposes and to explore
 computational approaches for investigating cellular heterogeneity,
 developmental trajectories, and intercellular communication.
+
+## Full Analysis
+
+The complete documented analysis, including code,
+figures, results, and biological interpretations,
+is available here:
+
+[View the full scRNA-seq analysis](analysis.md)
 
