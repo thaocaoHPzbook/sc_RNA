@@ -4530,7 +4530,7 @@ The resulting files contain:
 
 These objects can be reused for further trajectory analysis and visualization.
 
-### Part 4-4. Trajectory Analysis with CellRank
+### 4.4 Trajectory Analysis with CellRank
 
 RNA velocity provides information about the predicted direction of cellular transcriptional changes. However, identifying potential developmental trajectories and terminal cell states requires further analysis.
 
@@ -5160,7 +5160,7 @@ The saved object retains the original Seurat analysis and the newly calculated f
 
 ---
 
-### Part 4-5. Cell–Cell Communication Analysis
+### 4.5 Cell–Cell Communication Analysis
 
 Cell–cell communication plays an important role in coordinating cellular activities, tissue development, and differentiation.
 
