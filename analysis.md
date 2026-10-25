@@ -51,23 +51,21 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 
 
 ## Preparation
-<a id="top"></a>
+[(Back to top)](#top)
 The analyses begin with preprocessed gene expression count matrices generated using Cell Ranger. The original tutorial uses publicly available scRNA-seq datasets from human cerebral organoids, published by [Velasco et al. (2019)](https://www.nature.com/articles/s41586-019-1654-9). These datasets provide a foundation for reproducing established workflows, exploring downstream analyses, and interpreting cellular heterogeneity and developmental trajectories.
 
 ## Part 1. Basic scRNA-seq Data Analysis
-<a id="top"></a>
+[(Back to top)](#top)
 The gene expression count matrix from dataset DS1 was imported using `Read10X()`. A Seurat object was then created using `CreateSeuratObject()` to store the expression data and associated cell metadata for downstream analysis.
 
-
 ### Step 0. Import Seurat Package
-<a id="top"></a>
+[(Back to top)](#top)
 ```r
 library(Seurat)
 ```
 
 ### Step 1. Create a Seurat Object
-<a id="top"></a>
-
+[(Back to top)](#top)
 ```r
 # Load the 10x Genomics count matrix
 counts <- Read10X(data.dir = "data/DS1/")
@@ -112,7 +110,7 @@ For example, the first cell contains **16,752 UMI counts across 3,287 detected g
 These metrics provide an initial overview of sequencing depth and gene detection per cell and are used in subsequent quality control to identify potentially low-quality cells.
 
 ### Step 2. Quality Control
-<a id="top"></a>
+[(Back to top)](#top)
 
 Quality control (QC) was performed to identify potentially low-quality cells and doublets before downstream analysis. Three key metrics were examined:
 
@@ -232,7 +230,7 @@ QC filtering removes cells that do not meet the selected quality thresholds. The
 Filtering based on gene counts and mitochondrial percentages may not identify all doublets or damaged cells. Additional methods, such as [DoubletFinder](https://github.com/chris-mcginnis-ucsf/DoubletFinder), can be applied to detect potential doublets when necessary.
 
 ### Step 3. Normalization
-<a id="top"></a>
+[(Back to top)](#top)
 Gene expression data were normalized to account for differences in sequencing depth and total UMI counts across cells. Seurat's `NormalizeData()` function was applied using the default **LogNormalize** method.
 
 ```r
@@ -256,8 +254,7 @@ The normalized expression matrix is stored in the `data` layer of the RNA assay,
 
 
 ### Step 4. Highly Variable Feature Selection
-<a id="top"></a>
-
+[(Back to top)](#top)
 
 Highly variable genes (HVGs) were identified to capture biological heterogeneity across cells. Genes with substantial variation in expression are generally more informative for distinguishing cell populations than genes with relatively uniform expression.
 
@@ -303,7 +300,7 @@ The selected 3,000 HVGs will be used in subsequent dimensionality reduction and 
 
 
 ### Step 5. Data Scaling
-<a id="top"></a>
+[(Back to top)](#top)
 
 Data scaling was performed to standardize gene expression values across cells, preventing highly expressed genes from disproportionately influencing downstream analyses.
 
@@ -337,7 +334,7 @@ However, regression was not applied in the initial analysis to avoid potentially
 ---
 
 ### Optional: SCTransform Normalization
-<a id="top"></a>
+[(Back to top)](#top)
 
 [SCTransform](https://satijalab.org/seurat/articles/sctransform_vignette) provides an alternative preprocessing approach based on regularized negative binomial regression.
 
@@ -358,7 +355,7 @@ seurat_sct <- SCTransform(
 
 
 ### Step 6. Principal Component Analysis (PCA)
-<a id="top"></a>
+[(Back to top)](#top)
 
 Principal component analysis (PCA) was performed on the scaled highly variable genes to reduce data dimensionality while preserving major patterns of variation across cells.
 
@@ -478,7 +475,7 @@ Examining the gene contributions helps assess whether individual PCs capture bio
 
 
 ### Step 7. Non-linear Dimensionality Reduction
-<a id="top"></a>
+[(Back to top)](#top)
 
 Non-linear dimensionality reduction was performed using **t-distributed Stochastic Neighbor Embedding (t-SNE)** and **Uniform Manifold Approximation and Projection (UMAP)** to visualize cellular heterogeneity in two-dimensional space.
 
@@ -617,7 +614,7 @@ These observations will support subsequent cell clustering and biological annota
 
 
 ### Step 8. Cell Clustering
-<a id="top"></a>
+[(Back to top)](#top)
 
 Graph-based clustering was performed to identify transcriptionally distinct cell populations based on their gene expression profiles.
 
@@ -710,7 +707,7 @@ However, computational clusters do not necessarily correspond directly to biolog
 
 
 ### Step 9. Cell Type Annotation
-<a id="top"></a>
+[(Back to top)](#top)
 
 Cell type annotation was performed by examining the expression of canonical marker genes across the identified clusters.
 
@@ -1458,7 +1455,7 @@ These annotations provide an overview of the cellular composition of the cerebra
 The annotated identities will be used for downstream analyses of cellular differentiation and developmental trajectories.
 
 ### Step 10. Pseudotemporal Cell Ordering
-<a id="top"></a>
+[(Back to top)](#top)
 
 Pseudotime analysis was performed to investigate potential developmental trajectories among dorsal telencephalic cell populations.
 
@@ -1884,7 +1881,7 @@ seurat_dorsal <- readRDS("DS1/seurat_obj_dorsal.rds")
 The saved objects allow downstream analyses and visualizations to be reproduced using the previously processed data.
 
 ## Part 2. Integration of Multiple scRNA-seq Datasets
-<a id="top"></a>
+[(Back to top)](#top)
 When analyzing multiple scRNA-seq datasets, technical differences between experiments may introduce batch effects that obscure biological similarities between cell populations.
 
 In this section, two human cerebral organoid datasets (DS1 and DS2) were combined to examine their initial distribution and evaluate the need for data integration.
@@ -2322,19 +2319,19 @@ Harmony-corrected embeddings provide an alternative representation of the merged
 **Note:** Harmony corrects the low-dimensional embeddings rather than directly modifying the RNA expression matrix. Therefore, the original normalized RNA expression values remain available for downstream gene expression analysis. 
 
 #### 2.3 LIGER
-<a id="top"></a>
+[(Back to top)](#top)
 
 #### 2.4 Mutual Nearest Neighbors (MNN)
-<a id="top"></a>
+[(Back to top)](#top)
 
 #### 2.5 RSS Integration with BrainSpan
-<a id="top"></a>
+[(Back to top)](#top)
 
 #### 2.6 Cluster Similarity Spectrum (CSS)
-<a id="top"></a>
+[(Back to top)](#top)
 
 ### Step 3. Comparison of Integration Methods
-<a id="top"></a>
+[(Back to top)](#top)
 
 ## Part 3. Reference-Based Cell Type Annotation
 
@@ -3107,7 +3104,7 @@ This analysis provides complementary evidence for evaluating the consistency bet
 **Note:** Standardized similarity scores represent relative associations rather than raw Spearman correlation coefficients. Therefore, they should not be interpreted as direct correlation values.
 
 ### Method 2. Seurat Label Transfer
-<a id="top"></a>
+[(Back to top)](#top)
 
 ## Part 4. Advanced scRNA-seq Analysis
 
