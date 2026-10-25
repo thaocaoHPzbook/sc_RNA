@@ -52,20 +52,24 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 
 ## Preparation
 [(Back to top)](#top)
+
 The analyses begin with preprocessed gene expression count matrices generated using Cell Ranger. The original tutorial uses publicly available scRNA-seq datasets from human cerebral organoids, published by [Velasco et al. (2019)](https://www.nature.com/articles/s41586-019-1654-9). These datasets provide a foundation for reproducing established workflows, exploring downstream analyses, and interpreting cellular heterogeneity and developmental trajectories.
 
 ## Part 1. Basic scRNA-seq Data Analysis
 [(Back to top)](#top)
+
 The gene expression count matrix from dataset DS1 was imported using `Read10X()`. A Seurat object was then created using `CreateSeuratObject()` to store the expression data and associated cell metadata for downstream analysis.
 
 ### Step 0. Import Seurat Package
 [(Back to top)](#top)
+
 ```r
 library(Seurat)
 ```
 
 ### Step 1. Create a Seurat Object
 [(Back to top)](#top)
+
 ```r
 # Load the 10x Genomics count matrix
 counts <- Read10X(data.dir = "data/DS1/")
@@ -231,6 +235,7 @@ Filtering based on gene counts and mitochondrial percentages may not identify al
 
 ### Step 3. Normalization
 [(Back to top)](#top)
+
 Gene expression data were normalized to account for differences in sequencing depth and total UMI counts across cells. Seurat's `NormalizeData()` function was applied using the default **LogNormalize** method.
 
 ```r
