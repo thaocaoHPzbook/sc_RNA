@@ -2796,7 +2796,7 @@ In this approach, the expression profile of each cell in DS1 was compared with t
 
 **Spearman correlation** was used to measure transcriptomic similarity. To improve computational efficiency, gene expression values were first converted to ranks, followed by sparse matrix correlation.
 
-#### 1. 
+#### 1. Calculate Rank-Based Correlation Between Individual Cells and Reference Cell Types
 
 The same informative genes selected in Method 1-1 were used for cell-level analysis.
 
