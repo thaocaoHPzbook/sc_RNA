@@ -33,7 +33,7 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 - [Step 3. Comparison of Integration Methods](#step-3-comparison-of-integration-methods)
 
 ### Part 3. Reference-based Cell Type Annotation
-- [Step 0. Load Reference and Query Datasets](#step-0-load-reference-and-query-datasets)
+- [Step 0. Load Reference and Explore Reference Data](#step-0-load-reference-and-explore-reference-data)
 - [Method 1. Transcriptome Similarity](#method-1-transcriptome-similarity)
   - [1.1 Cluster-level Similarity](#11-cluster-level-similarity)
   - [1.2 Cell-level Similarity](#12-cell-level-similarity)
