@@ -5342,5 +5342,918 @@ It is important to note that UMAP proximity alone does not establish direct biol
 
 ---
 
+#### 4.5.3. Prepare Input Data for CellPhoneDB
 
+CellPhoneDB was used to investigate potential ligand–receptor interactions between the annotated cell populations in DS4.
 
+The analysis requires two primary inputs:
+
+1. A normalized gene expression matrix.
+2. Cell metadata containing cell identifiers and their corresponding cell-type annotations.
+
+**1. Export Normalized Gene Expression**
+
+```r
+# Create output directory
+dir.create(
+  "DS4/cellphonedb",
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+# Extract normalized RNA expression
+expr_DS4 <- GetAssayData(
+  seurat_DS4,
+  assay = "RNA",
+  layer = "data"
+)
+
+# Export expression matrix
+write.table(
+  as.matrix(expr_DS4),
+  file = "DS4/cellphonedb/expr.tsv",
+  sep = "\t",
+  quote = FALSE,
+  col.names = NA
+)
+```
+
+The exported expression matrix contains genes as rows and individual cells as columns.
+
+**2. Export Cell-Type Metadata**
+
+```r
+# Export cell metadata
+write.table(
+  data.frame(
+    Cell = colnames(seurat_DS4),
+    cell_type = as.character(seurat_DS4$Cell_type)
+  ),
+  file = "DS4/cellphonedb/metadata.tsv",
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE
+)
+```
+
+The metadata links individual cell barcodes to their previously assigned cell-type annotations.
+
+**3. Save and Verify Input Files**
+
+```r
+# Save Seurat object
+saveRDS(
+  seurat_DS4,
+  "DS4/seurat_DS4.rds"
+)
+
+# Verify exported files
+file.exists(
+  c(
+    "DS4/cellphonedb/expr.tsv",
+    "DS4/cellphonedb/metadata.tsv"
+  )
+)
+
+# Check working directory
+getwd()
+```
+
+The resulting expression and metadata files were used as inputs for CellPhoneDB statistical analysis.
+
+**CellPhoneDB Statistical Analysis**
+
+CellPhoneDB evaluates potential cell–cell interactions using a curated database of ligand–receptor pairs.
+
+Its statistical analysis procedure uses permutations of cell-type labels to assess whether particular ligand–receptor interactions are enriched between specific cell populations.
+
+The resulting p-values were used to identify statistically significant interactions.
+
+---
+
+#### 4.5.4. Quantification of Significant Cell–Cell Interactions
+
+Following CellPhoneDB statistical analysis, the resulting p-value matrix was used to summarize the number of significant ligand–receptor interactions between each pair of cell populations.
+
+A significance threshold of **p < 0.01** was applied.
+
+**1. Import CellPhoneDB Results**
+
+```r
+# Read CellPhoneDB p-values
+p <- read.delim(
+  "DS4/cellphonedb/out/pvalues.tsv",
+  check.names = FALSE
+)
+
+# Identify cell-type pair columns
+pair_columns <- grep(
+  "|",
+  colnames(p),
+  fixed = TRUE,
+  value = TRUE
+)
+
+stopifnot(
+  length(pair_columns) > 0L
+)
+```
+
+Each cell-type pair column contains the p-values of potential ligand–receptor interactions between the corresponding cell populations.
+
+**2. Count Significant Interactions**
+
+```r
+# Count interactions with p < 0.01
+pair_counts <- vapply(
+  p[, pair_columns, drop = FALSE],
+  function(x) {
+    sum(x < 0.01, na.rm = TRUE)
+  },
+  numeric(1)
+)
+```
+
+The resulting values represent the number of ligand–receptor interactions meeting the selected significance threshold for each cell-type pair.
+
+**3. Construct the Interaction Matrix**
+
+```r
+# Extract cell-type names from pair labels
+partners <- strsplit(
+  pair_columns,
+  "|",
+  fixed = TRUE
+)
+
+stopifnot(
+  all(lengths(partners) == 2L)
+)
+
+partner1 <- vapply(
+  partners,
+  `[`,
+  character(1),
+  1
+)
+
+partner2 <- vapply(
+  partners,
+  `[`,
+  character(1),
+  2
+)
+
+# Identify all cell populations
+cell_types <- sort(
+  unique(c(partner1, partner2))
+)
+
+# Initialize interaction matrix
+mat_pairs <- matrix(
+  0,
+  nrow = length(cell_types),
+  ncol = length(cell_types),
+  dimnames = list(
+    cell_types,
+    cell_types
+  )
+)
+
+# Fill matrix with interaction counts
+mat_pairs[
+  cbind(
+    match(partner1, cell_types),
+    match(partner2, cell_types)
+  )
+] <- pair_counts
+```
+
+The resulting matrix summarizes significant interactions for each ordered pair of cell populations.
+
+**4. Combine Both Interaction Directions**
+
+To visualize the overall interaction counts between two cell populations, the counts from both directions were combined.
+
+```r
+# Combine interaction counts from both directions
+mat_total <- mat_pairs + t(mat_pairs)
+
+# Count within-population interactions only once
+diag(mat_total) <- diag(mat_pairs)
+```
+
+This produces a symmetric matrix representing the combined number of significant interactions between cell populations.
+
+Directional information remains available in the original `mat_pairs` matrix.
+
+**5. Visualize the Interaction Heatmap**
+
+```r
+# Load pheatmap
+if (!requireNamespace(
+  "pheatmap",
+  quietly = TRUE
+)) {
+  install.packages("pheatmap")
+}
+
+# Set figure dimensions
+options(
+  repr.plot.width = 12,
+  repr.plot.height = 10
+)
+
+# Plot interaction heatmap
+pheatmap::pheatmap(
+  mat_total,
+  scale = "none",
+  color = colorRampPalette(
+    c(
+      "#4575B4",
+      "#9DCEE3",
+      "#EFE9C3",
+      "#FA9D59",
+      "#D73027"
+    )
+  )(100),
+  border_color = NA,
+  fontsize = 11,
+  angle_col = 45,
+  main = "DS4: inferred interactions (p < 0.01)"
+)
+```
+<img width="1440" height="1200" alt="image" src="https://github.com/user-attachments/assets/64334222-2b51-4bd3-af43-138ce300e44c" />
+
+**Results and Interpretation**
+
+The heatmap summarizes the number of statistically significant ligand–receptor interactions between the annotated cell populations in DS4.
+
+- **Blue:** Relatively fewer significant interactions.
+- **Yellow:** Intermediate numbers of significant interactions.
+- **Red:** Relatively more significant interactions.
+
+Higher interaction counts suggest that a larger number of ligand–receptor pairs were identified as statistically enriched between the corresponding cell populations.
+
+The diagonal represents interactions within the same annotated cell population.
+
+The matrix combines interactions in both directions and therefore summarizes overall interaction counts rather than the direction of individual ligand–receptor signals.
+
+Although these results highlight potential communication relationships, the number of significant ligand–receptor pairs does not directly quantify communication strength or confirm physical interactions between cells.
+
+Further examination of individual ligand–receptor pairs is necessary to identify the molecular pathways potentially involved in cell–cell communication.
+
+---
+#### 4.5.5. Directional Cell–Cell Communication Analysis
+
+The previous analysis summarized the total number of significant ligand–receptor interactions between pairs of cell populations without distinguishing their direction.
+
+However, cell–cell communication is directional: one cell population may express a ligand, while another expresses its corresponding receptor.
+
+To investigate potential signaling directionality, CellPhoneDB results were further analyzed using ligand and receptor annotations.
+
+In this analysis:
+
+- **Sender:** Cell population expressing the ligand.
+- **Receiver:** Cell population expressing the corresponding receptor.
+
+Only interactions annotated as secreted and containing one receptor partner were considered.
+
+**1. Save the Symmetric Interaction Matrix**
+
+```r
+# Save the previously calculated symmetric interaction matrix
+write.csv(
+  mat_total,
+  "DS4/cellphonedb/out/interaction_counts_symmetric.csv"
+)
+```
+
+**2. Load CellPhoneDB Results**
+
+```r
+# Read CellPhoneDB statistical results
+p <- read.delim(
+  "DS4/cellphonedb/out/pvalues.tsv",
+  check.names = FALSE
+)
+
+# Verify required annotations
+stopifnot(
+  all(
+    c(
+      "secreted",
+      "receptor_a",
+      "receptor_b"
+    ) %in% colnames(p)
+  )
+)
+
+# Identify cell-type pair columns
+pair_columns <- grep(
+  "|",
+  colnames(p),
+  fixed = TRUE,
+  value = TRUE
+)
+
+stopifnot(length(pair_columns) > 0L)
+```
+
+CellPhoneDB provides information about ligand–receptor interactions, including whether an interaction involves a secreted component and which interacting partner is annotated as a receptor.
+
+**3. Identify Ligand–Receptor Direction**
+
+The receptor annotations were used to determine which partner represents the ligand and which represents the receptor.
+
+```r
+# Convert Boolean annotations to logical values
+is_true <- function(x) {
+  tolower(
+    trimws(as.character(x))
+  ) == "true"
+}
+
+secreted <- is_true(p$secreted)
+receptor_a <- is_true(p$receptor_a)
+receptor_b <- is_true(p$receptor_b)
+
+# Partner A = ligand; Partner B = receptor
+idx_AB <- which(
+  secreted &
+    !receptor_a &
+    receptor_b
+)
+
+# Partner B = ligand; Partner A = receptor
+idx_BA <- which(
+  secreted &
+    receptor_a &
+    !receptor_b
+)
+```
+
+The analysis distinguishes two possible ligand–receptor orientations:
+
+- **A → B:** Partner A is the ligand and partner B is the receptor.
+- **B → A:** Partner B is the ligand and partner A is the receptor.
+
+**4. Count Significant Directed Interactions**
+
+A significance threshold of `p < 0.05` was used to identify candidate interactions.
+
+```r
+# Count significant A → B interactions
+counts_AB <- colSums(
+  p[
+    idx_AB,
+    pair_columns,
+    drop = FALSE
+  ] < 0.05,
+  na.rm = TRUE
+)
+
+# Count significant B → A interactions
+counts_BA <- colSums(
+  p[
+    idx_BA,
+    pair_columns,
+    drop = FALSE
+  ] < 0.05,
+  na.rm = TRUE
+)
+```
+
+The resulting counts summarize the number of significant ligand–receptor interactions associated with each signaling orientation.
+
+**5. Construct the Directed Interaction Matrix**
+
+```r
+# Extract cell populations from column names
+partners <- strsplit(
+  pair_columns,
+  "|",
+  fixed = TRUE
+)
+
+stopifnot(
+  all(lengths(partners) == 2L)
+)
+
+partner1 <- vapply(
+  partners,
+  `[`,
+  character(1),
+  1
+)
+
+partner2 <- vapply(
+  partners,
+  `[`,
+  character(1),
+  2
+)
+
+# Identify all cell populations
+cell_types <- sort(
+  unique(c(partner1, partner2))
+)
+
+# Initialize directed interaction matrix
+# Rows = receivers
+# Columns = senders
+mat_directed <- matrix(
+  0,
+  nrow = length(cell_types),
+  ncol = length(cell_types),
+  dimnames = list(
+    cell_types,
+    cell_types
+  )
+)
+
+# Assign interaction counts according to direction
+for (i in seq_along(pair_columns)) {
+
+  # A is expressed in partner1
+  # B is expressed in partner2
+  # Direction: partner1 → partner2
+  mat_directed[
+    partner2[i],
+    partner1[i]
+  ] <-
+    mat_directed[
+      partner2[i],
+      partner1[i]
+    ] + counts_AB[i]
+
+  # Direction: partner2 → partner1
+  mat_directed[
+    partner1[i],
+    partner2[i]
+  ] <-
+    mat_directed[
+      partner1[i],
+      partner2[i]
+    ] + counts_BA[i]
+}
+```
+
+The matrix contains:
+
+- **Rows:** Receiving cell populations.
+- **Columns:** Sending cell populations.
+- **Values:** Numbers of significant interactions from sender to receiver.
+
+Unlike the previous symmetric matrix, this matrix retains the inferred direction of ligand–receptor signaling.
+
+**6. Visualize Directed Cell–Cell Interactions**
+
+```r
+# Set figure dimensions
+options(
+  repr.plot.width = 12,
+  repr.plot.height = 10
+)
+
+# Plot directed interaction heatmap
+pheatmap::pheatmap(
+  mat_directed,
+  scale = "none",
+  color = colorRampPalette(
+    c(
+      "#4575B4",
+      "#9DCEE3",
+      "#EFE9C3",
+      "#FA9D59",
+      "#D73027"
+    )
+  )(100),
+  border_color = NA,
+  fontsize = 11,
+  angle_col = 45,
+  main = "DS4: directed interactions (p < 0.05)"
+)
+```
+
+**7. Save Directed Interaction Counts**
+
+```r
+# Export directed interaction matrix
+write.csv(
+  mat_directed,
+  "DS4/cellphonedb/out/interaction_counts_directed.csv"
+)
+```
+<img width="1440" height="1200" alt="image" src="https://github.com/user-attachments/assets/9e4ac0f7-1fdc-41e1-8f20-cf1449d454a4" />
+
+**Results and Interpretation**
+
+The directed interaction heatmap summarizes the number of statistically significant secreted ligand–receptor interactions between cell populations.
+
+Each matrix entry represents the number of inferred signaling interactions from a sender population (column) toward a receiver population (row).
+
+- **Higher values:** More significant candidate ligand–receptor interactions in the corresponding direction.
+- **Lower values:** Fewer significant candidate interactions.
+- **Diagonal:** Potential signaling interactions within the same annotated cell population.
+
+Unlike the symmetric interaction heatmap, the directed matrix allows potential sending and receiving relationships to be examined separately.
+
+For example, interactions from population A to population B may differ from interactions in the opposite direction, suggesting distinct ligand and receptor expression patterns.
+
+However, the identified interactions represent potential molecular communication inferred from gene expression and ligand–receptor annotations.
+
+They do not establish physical cell–cell contact, experimentally validated signaling activity, or the actual strength of communication.
+
+Further investigation of individual ligand–receptor pairs is required to understand the biological pathways involved.
+
+---
+#### 4.5.6. Communication Pattern Analysis with COMUNET
+
+To further investigate cell–cell communication patterns, the CellPhoneDB results were analyzed using [COMUNET](https://github.com/ScialdoneLab/COMUNET).
+
+COMUNET (Cell cOMmunication exploration with MUltiplex NETworks) is an R package designed to explore and visualize intercellular communication networks.
+
+The method represents ligand–receptor interactions as layers of a multiplex network and identifies groups of interactions with similar communication patterns across cell populations.
+
+In this analysis, COMUNET was used to:
+
+1. Convert CellPhoneDB results into communication networks.
+2. Identify groups of ligand–receptor pairs with similar interaction patterns.
+3. Visualize similarities between communication patterns.
+4. Explore representative cell–cell communication networks.
+
+**1. Examine CellPhoneDB Results**
+
+```r
+# Read significant ligand-receptor interactions
+CellPhoneDB_output <- read.delim(
+  "DS4/cellphonedb/out/significant_means.tsv",
+  check.names = FALSE
+)
+
+# Examine data dimensions
+dim(CellPhoneDB_output)
+
+# Identify interaction annotation columns
+colnames(CellPhoneDB_output)[
+  !grepl(
+    "|",
+    colnames(CellPhoneDB_output),
+    fixed = TRUE
+  )
+]
+
+# Examine the first interactions
+head(
+  CellPhoneDB_output[
+    ,
+    seq_len(
+      min(12, ncol(CellPhoneDB_output))
+    )
+  ]
+)
+```
+
+The `significant_means.tsv` file contains information about ligand–receptor interactions and their significant mean expression values across cell-type pairs.
+
+**2. Prepare CellPhoneDB Results for COMUNET**
+
+```r
+library(COMUNET)
+
+# Read CellPhoneDB results
+cpdb_output <- read.delim(
+  "DS4/cellphonedb/out/significant_means.tsv",
+  check.names = FALSE
+)
+
+# Remove duplicated interaction pairs
+cpdb_output <- cpdb_output[
+  !duplicated(cpdb_output$interacting_pair),
+  ,
+  drop = FALSE
+]
+
+# Assign interaction identifiers
+rownames(cpdb_output) <-
+  cpdb_output$interacting_pair
+
+# Convert receptor annotations to logical values
+cpdb_output$receptor_a <-
+  tolower(
+    as.character(cpdb_output$receptor_a)
+  ) == "true"
+
+cpdb_output$receptor_b <-
+  tolower(
+    as.character(cpdb_output$receptor_b)
+  ) == "true"
+
+# Validate receptor annotations
+stopifnot(
+  !anyNA(cpdb_output$receptor_a),
+  !anyNA(cpdb_output$receptor_b)
+)
+```
+
+**3. Retrieve CellPhoneDB Database Information**
+
+Protein complex and gene annotation information was obtained from the CellPhoneDB v5.0.0 database.
+
+```r
+# CellPhoneDB v5.0.0 database URL
+db_url <- paste0(
+  "https://raw.githubusercontent.com/",
+  "ventolab/cellphonedb-data/v5.0.0/data/"
+)
+
+# Load protein complex information
+complex_input <- read.csv(
+  paste0(db_url, "complex_input.csv"),
+  stringsAsFactors = FALSE
+)
+
+# Load gene annotation information
+gene_input <- read.csv(
+  paste0(db_url, "gene_input.csv"),
+  stringsAsFactors = FALSE
+)
+
+# Standardize complex names
+complex_input$complex_name <- gsub(
+  "_",
+  " ",
+  complex_input$complex_name
+)
+```
+
+The database information is required to identify individual genes associated with ligand–receptor complexes.
+
+**4. Adapt Complex Subunit Mapping for CellPhoneDB v5**
+
+To accommodate the protein complex structure of CellPhoneDB v5, the complex-to-gene mapping function was adapted to retrieve all available UniProt subunit columns.
+
+```r
+# Create a local copy of the conversion function
+convert_cpdb <-
+  COMUNET::convert_CellPhoneDB_output
+
+# Create a separate environment
+conversion_env <- new.env(
+  parent = environment(convert_cpdb)
+)
+
+# Define complex-to-gene conversion
+conversion_env$complex2genes <- function(
+  complex,
+  complex_input,
+  gene_input
+) {
+
+  if (complex %in% complex_input$complex_name) {
+
+    # Identify all UniProt subunit columns
+    subunit_cols <- grep(
+      "^uniprot_",
+      colnames(complex_input),
+      value = TRUE
+    )
+
+    # Extract UniProt identifiers
+    ids <- unlist(
+      complex_input[
+        complex_input$complex_name == complex,
+        subunit_cols,
+        drop = FALSE
+      ],
+      use.names = FALSE
+    )
+
+    # Remove missing identifiers
+    ids <- ids[
+      !is.na(ids) & nzchar(ids)
+    ]
+
+    # Map UniProt IDs to gene names
+    unique(
+      gene_input$gene_name[
+        gene_input$uniprot %in% ids
+      ]
+    )
+
+  } else {
+
+    # Handle individual genes
+    unique(
+      gene_input$gene_name[
+        !is.na(gene_input$gene_name) &
+          gene_input$gene_name == complex
+      ]
+    )
+  }
+}
+
+# Apply the local conversion environment
+environment(convert_cpdb) <- conversion_env
+```
+
+This modification was applied only to a local copy of the conversion function and does not modify the installed COMUNET package.
+
+**5. Convert CellPhoneDB Results into COMUNET Format**
+
+```r
+# Convert CellPhoneDB results
+interactions <- convert_cpdb(
+  CellPhoneDB_output = cpdb_output,
+  complex_input = complex_input,
+  gene_input = gene_input
+)
+
+# Examine the communication weight array
+dim(interactions$weight_array)
+```
+
+The conversion produces the data structures required for COMUNET analysis:
+
+- `weight_array`: Communication weights for ligand–receptor pairs across cell populations.
+- `ligand_receptor_pair_df`: Information about the interacting molecular partners.
+- `nodes`: Cell populations represented in the communication network.
+
+#### 4.5.7. Clustering Ligand–Receptor Communication Patterns
+
+COMUNET was used to identify groups of ligand–receptor pairs showing similar communication patterns across the annotated cell populations.
+
+**1. Perform Ligand–Receptor Clustering**
+
+```r
+# Configure figure background
+options(
+  repr.plot.width = 12,
+  repr.plot.height = 10,
+  repr.plot.bg = "white"
+)
+
+par(
+  bg = "white",
+  fg = "black",
+  col.axis = "black",
+  col.lab = "black",
+  col.main = "black"
+)
+
+# Cluster ligand-receptor communication patterns
+lrp_clusters <- lrp_clustering(
+  weight_array = interactions$weight_array,
+  ligand_receptor_pair_df =
+    interactions$ligand_receptor_pair_df,
+  nodes = interactions$nodes
+)
+
+# Count ligand-receptor pairs in each cluster
+table(lrp_clusters$clusters)
+```
+<img width="1440" height="1200" alt="image" src="https://github.com/user-attachments/assets/6986825b-5397-4132-8466-f0dc08ad198d" />
+<img width="1440" height="1200" alt="image" src="https://github.com/user-attachments/assets/7b0c5155-cf64-46fc-a1d7-1d835a413326" />
+
+The clustering procedure groups ligand–receptor pairs according to the similarity of their communication patterns.
+
+Pairs assigned to the same cluster exhibit relatively similar interaction distributions across the cell populations.
+
+**2. Visualize Communication Pattern Similarities**
+
+```r
+# Set figure dimensions
+options(
+  repr.plot.width = 12,
+  repr.plot.height = 10,
+  repr.plot.bg = "white"
+)
+
+# Plot communication pattern dissimilarity heatmap
+plot_cluster_heatmap(
+  dissim_matrix = lrp_clusters$dissim_matrix,
+  lrp_clusters = lrp_clusters$clusters
+)
+```
+<img width="1440" height="1200" alt="image" src="https://github.com/user-attachments/assets/609a1757-f6c1-408a-ad0f-f8cf0d5b8227" />
+
+**Results and Interpretation**
+
+The heatmap represents the dissimilarity between ligand–receptor communication patterns.
+
+- **Lower dissimilarity:** Ligand–receptor pairs exhibit more similar patterns of communication across cell populations.
+- **Higher dissimilarity:** Ligand–receptor pairs exhibit more distinct communication patterns.
+
+The clustering results allow molecular interactions with potentially related communication roles to be grouped together.
+
+However, similar communication patterns do not necessarily indicate that the corresponding ligand–receptor pairs participate in the same biological signaling pathway.
+
+#### 4.5.8. Visualization of Communication Networks
+
+To investigate the communication patterns identified by COMUNET, a representative ligand–receptor cluster was selected for network visualization.
+
+**1. Identify Available Communication Clusters**
+
+```r
+# Retrieve communication cluster names
+cluster_names <- dimnames(
+  lrp_clusters$weight_array_by_cluster
+)[[3]]
+
+# Display cluster names
+print(cluster_names)
+
+# Verify available clusters
+if (length(cluster_names) == 0L) {
+  stop(
+    "No communication clusters available for visualization."
+  )
+}
+
+# Select cluster 10 if available
+cluster_to_plot <- if (
+  "cluster 10" %in% cluster_names
+) {
+  "cluster 10"
+} else {
+  cluster_names[1]
+}
+
+print(cluster_to_plot)
+```
+
+**2. Visualize the Selected Communication Network**
+
+```r
+# Set figure dimensions
+options(
+  repr.plot.width = 14,
+  repr.plot.height = 12,
+  repr.plot.bg = "white"
+)
+
+# Configure graphical parameters
+par(
+  bg = "white",
+  fg = "black",
+  col.axis = "black",
+  col.lab = "black",
+  col.main = "black"
+)
+
+# Plot communication network
+plot_communication_graph(
+  LRP = cluster_to_plot,
+  weight_array =
+    lrp_clusters$weight_array_by_cluster[
+      ,
+      ,
+      cluster_to_plot
+    ],
+  ligand_receptor_pair_df =
+    interactions$ligand_receptor_pair_df,
+  nodes = interactions$nodes,
+  is_cluster = TRUE
+)
+```
+![Uploading image.png…]()
+
+**Results and Interpretation**
+
+The network visualization provides an overview of the communication pattern associated with the selected ligand–receptor cluster.
+
+Each node represents an annotated cell population, while the connections describe inferred communication relationships between populations.
+
+The visualization can be used to identify:
+
+- Cell populations potentially involved in communication.
+- Patterns of interaction between different cell populations.
+- Populations participating in multiple inferred communication relationships.
+
+The selected ligand–receptor cluster represents a group of molecular interactions with similar network patterns.
+
+These networks represent computationally inferred communication rather than experimentally confirmed cell–cell signaling.
+
+**3. Save COMUNET Results**
+
+```r
+# Save converted interactions and clustering results
+saveRDS(
+  list(
+    interactions = interactions,
+    lrp_clusters = lrp_clusters
+  ),
+  "DS4/cellphonedb/COMUNET_results.rds"
+)
+```
+
+The saved object contains the converted communication data and ligand–receptor clustering results for further analysis.
+
+---
+
+**References**
+
+- [COMUNET GitHub repository](https://github.com/ScialdoneLab/COMUNET)
+- [COMUNET: A Tool to Explore and Visualize Intercellular Communication](https://academic.oup.com/bioinformatics/article/36/15/4296/5836497)
+- [CellPhoneDB documentation](https://cellphonedb.readthedocs.io/)
