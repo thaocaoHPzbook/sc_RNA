@@ -1992,7 +1992,9 @@ Differences in the distribution of cells from DS1 and DS2 may reflect technical 
 This initial analysis serves as a reference for evaluating the effects of subsequent data integration methods.
 
 **Note:** Merging datasets does not automatically correct batch effects. The integrated results should be evaluated to determine whether technical differences have been reduced while preserving meaningful biological variation. 
-### Step 2-1. Data Integration Using Seurat (CCA)
+
+### Step 2. Data Integration Methods
+#### 2.1 Seurat Integration
 
 Seurat provides an anchor-based integration framework to identify corresponding cell populations across multiple datasets and reduce technical batch effects.
 
@@ -2166,7 +2168,7 @@ The integrated UMAP can be compared with the unintegrated UMAP to assess changes
 
 **Note:** Improved dataset mixing alone does not demonstrate successful integration. Biological differences between cell populations should also be preserved, and potential overcorrection should be considered. 
 
-### Step 2-2. Data Integration Using Harmony
+### 2.2. Harmony
 
 [Harmony](https://github.com/immunogenomics/harmony) is a dimensionality reduction-based integration method designed to reduce batch effects while preserving biological variation across scRNA-seq datasets.
 
