@@ -22,7 +22,7 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 - [Step 11. Save The Results](#step-11-save-the-results)
 
 ### Part 2. Integration of Multiple scRNA-seq Datasets
-- [Step 1. Load and Merge Datasets](#step-1-load-and-merged-datasets)
+- [Step 1. Load and Merge Datasets](#step-1-load-and-merge-datasets)
 - [Step 2. Data Integration Methods](#step-2-data-integration-methods)
   - [2.1 Seurat Integration](#21-seurat-integration)
   - [2.2 Harmony](#22-harmony)
