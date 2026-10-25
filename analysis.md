@@ -40,7 +40,7 @@ A reproducible workflow for single-cell RNA sequencing (scRNA-seq) data analysis
 - [Method 2. Seurat Label Transfer](#method-2-seurat-label-transfer)
 
 ### Part 4. Advanced scRNA-seq AnalysisMethod 1-1. Transcriptome Similarity at the Cell Cluster Level
-- [4.1 Cluster Connectivity Analysis with PAGA](#41-cluster-connectivity-analysis-with-paga)
+- [4.1 Cluster Connectivity Analysis with PAGA](#41-cluster-connectivity-analysis-with-paga) 
 - [4.2 Branched Trajectory and Pseudotime Analysis](#42-branched-trajectory-and-pseudotime-analysis)
 - [4.3 RNA Velocity Analysis](#43-rna-velocity-analysis)
 - [4.4 Trajectory Analysis with CellRank](#44-trajectory-analysis-with-cellrank)
@@ -3128,7 +3128,7 @@ In this section, selected advanced methods were applied to the human cerebral or
 
 ---
 
-### Part 4-1. Cluster Connectivity Analysis with PAGA
+### 4-1. Cluster Connectivity Analysis with PAGA
 
 **Partition-based Graph Abstraction (PAGA)** is a graph-based approach for investigating connectivity between cellular populations.
 
@@ -3366,7 +3366,7 @@ These relationships may provide insights into potential developmental associatio
 **Note:** PAGA connectivity does not independently establish developmental direction or lineage ancestry. Additional evidence, such as pseudotime analysis or RNA velocity, is required to support directional interpretations.
 
 
-### Part 4-2. Pseudotime Reconstruction in Complex Cell Populations
+### 4-2. Pseudotime Reconstruction in Complex Cell Populations
 
 In Part 1, diffusion pseudotime (DPT) analysis was performed on a subset of dorsal telencephalic cells to investigate neuronal differentiation.
 
@@ -3615,7 +3615,7 @@ The reconstructed pseudotime distributions were compared with established develo
 **Note:** Pseudotime represents inferred transcriptional progression rather than chronological developmental time. In complex datasets containing multiple developmental lineages, a single pseudotime ordering may not adequately describe all differentiation trajectories.
 
 The direction and biological interpretation of each inferred trajectory depend on root cell selection and should be evaluated using independent biological evidence.
-### Part 4-3. RNA Velocity Analysis
+### 4-3. RNA Velocity Analysis
 
 RNA velocity is a computational approach for estimating the direction of transcriptional changes in individual cells.
 
