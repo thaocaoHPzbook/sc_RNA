@@ -3128,7 +3128,7 @@ In this section, selected advanced methods were applied to the human cerebral or
 
 ---
 
-### 4.1. Cluster Connectivity Analysis with PAGA
+### 4.1 Cluster Connectivity Analysis with PAGA
 
 **Partition-based Graph Abstraction (PAGA)** is a graph-based approach for investigating connectivity between cellular populations.
 
@@ -3366,7 +3366,7 @@ These relationships may provide insights into potential developmental associatio
 **Note:** PAGA connectivity does not independently establish developmental direction or lineage ancestry. Additional evidence, such as pseudotime analysis or RNA velocity, is required to support directional interpretations.
 
 
-### 4.2. Pseudotime Reconstruction in Complex Cell Populations
+### 4.2 Pseudotime Reconstruction in Complex Cell Populations
 
 In Part 1, diffusion pseudotime (DPT) analysis was performed on a subset of dorsal telencephalic cells to investigate neuronal differentiation.
 
@@ -3615,7 +3615,8 @@ The reconstructed pseudotime distributions were compared with established develo
 **Note:** Pseudotime represents inferred transcriptional progression rather than chronological developmental time. In complex datasets containing multiple developmental lineages, a single pseudotime ordering may not adequately describe all differentiation trajectories.
 
 The direction and biological interpretation of each inferred trajectory depend on root cell selection and should be evaluated using independent biological evidence.
-### 4.3. RNA Velocity Analysis
+
+### 4.3 RNA Velocity Analysis
 
 RNA velocity is a computational approach for estimating the direction of transcriptional changes in individual cells.
 
@@ -4357,6 +4358,7 @@ The analysis generated:
 The inferred velocity directions can be compared with previously identified neural cell populations and developmental markers to assess their consistency with potential neuronal differentiation processes.
 
 **Note:** RNA velocity provides model-based estimates of transcriptional dynamics rather than direct observations of cell fate transitions. The interpretation depends on the quality of spliced/unspliced quantification and the assumptions of the selected velocity model.
+
 #### 4.3.2. Velocity Pseudotime and Latent Time Analysis
 
 RNA velocity provides information about the predicted direction of transcriptional changes. To further investigate potential developmental progression, two complementary approaches were applied using scVelo:
