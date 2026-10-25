@@ -2458,8 +2458,332 @@ The expression of SOX2, DCX, FOXG1, EMX1, DLX2, and LHX9 provides additional bio
 
 These analyses establish the reference dataset for subsequent transcriptomic similarity analysis and reference-based cell type annotation. 
 
-### Method 1. Transcriptome Similarity
-<a id="top"></a>
+### Method 1-1. Transcriptome Similarity at the Cell Cluster Level
+
+Reference-based cell type annotation can be performed by comparing the transcriptomic profiles of query cell clusters with those of annotated cell populations in a reference dataset.
+
+In this analysis, **DS1 was used as the query dataset**, while the annotated reference dataset provided the known cell type identities.
+
+Average gene expression profiles were calculated for each group, and **Spearman correlation** was used to evaluate transcriptomic similarity.
+
+The analysis consisted of four steps:
+
+1. Calculate average gene expression profiles for DS1 clusters and reference cell types.
+2. Select informative genes shared between DS1 and the reference.
+3. Calculate Spearman correlations between transcriptional profiles.
+4. Visualize transcriptomic similarities using a hierarchically clustered heatmap.
+
+#### 1. Calculate Average Gene Expression Profiles
+
+Log-normalized RNA expression values were extracted from DS1 and the reference dataset. Average expression was calculated for each DS1 cluster and annotated reference cell type.
+
+```r
+library(Seurat)
+library(Matrix)
+library(ggplot2)
+library(patchwork)
+
+# Load datasets
+seurat_DS1 <- readRDS("DS1/seurat_obj_all.rds")
+seurat_ref <- readRDS("ref_seurat_obj.rds")
+
+# Use RNA assays
+DefaultAssay(seurat_DS1) <- "RNA"
+DefaultAssay(seurat_ref) <- "RNA"
+
+# Join layers if using Seurat v5
+if (inherits(seurat_DS1[["RNA"]], "Assay5")) {
+  seurat_DS1 <- JoinLayers(seurat_DS1, assay = "RNA")
+}
+
+if (inherits(seurat_ref[["RNA"]], "Assay5")) {
+  seurat_ref <- JoinLayers(seurat_ref, assay = "RNA")
+}
+
+# Extract normalized RNA expression
+expr_ds1 <- GetAssayData(
+  seurat_DS1,
+  assay = "RNA",
+  layer = "data"
+)
+
+expr_ref <- GetAssayData(
+  seurat_ref,
+  assay = "RNA",
+  layer = "data"
+)
+
+# Extract DS1 cluster identities
+ds1_labels <- Idents(seurat_DS1)[colnames(expr_ds1)]
+
+# Extract reference cell type annotations
+ref_labels <- seurat_ref[[]][
+  colnames(expr_ref), "celltype"
+]
+
+# Identify groups
+ds1_groups <- levels(droplevels(ds1_labels))
+ref_groups <- sort(unique(as.character(ref_labels)))
+
+# Average expression for DS1 clusters
+avg_expr_ds1 <- sapply(ds1_groups, function(ct) {
+  Matrix::rowMeans(
+    expr_ds1[, ds1_labels == ct, drop = FALSE]
+  )
+})
+
+# Average expression for reference cell types
+avg_expr_ref <- sapply(ref_groups, function(ct) {
+  Matrix::rowMeans(
+    expr_ref[, ref_labels == ct, drop = FALSE]
+  )
+})
+
+# Assign column names
+colnames(avg_expr_ds1) <- ds1_groups
+colnames(avg_expr_ref) <- ref_groups
+```
+
+#### 2. Select Informative Genes
+
+Highly variable genes from the reference dataset that were also present in DS1 were selected for transcriptomic similarity analysis.
+
+```r
+# Select reference HVGs shared with DS1
+genes2cor <- Reduce(
+  intersect,
+  list(
+    VariableFeatures(seurat_ref),
+    rownames(expr_ds1),
+    rownames(expr_ref)
+  )
+)
+
+# Number of selected genes
+length(genes2cor)
+
+# Check that sufficient genes are available
+stopifnot(length(genes2cor) >= 50)
+```
+
+This approach focuses the comparison on genes that capture transcriptional heterogeneity within the reference dataset.
+
+#### 3. Calculate Transcriptomic Similarity
+
+Spearman correlation was used to measure the similarity between the average gene expression profiles of DS1 clusters and annotated reference cell types.
+
+```r
+# Calculate Spearman correlation
+corr2ref_cl <- cor(
+  avg_expr_ds1[genes2cor, , drop = FALSE],
+  avg_expr_ref[genes2cor, , drop = FALSE],
+  method = "spearman"
+)
+
+# Examine correlation matrix
+round(corr2ref_cl, 3)
+```
+
+
+
+The resulting correlation matrix contains:
+
+- **Rows:** DS1 clusters.
+- **Columns:** Annotated reference cell types.
+- **Values:** Spearman correlation coefficients.
+
+Higher positive correlations indicate greater similarity between the corresponding transcriptional profiles.
+
+#### 4. Visualize Transcriptomic Similarity
+
+Hierarchical clustering was applied to the correlation matrix to organize DS1 clusters and reference cell types according to their similarity patterns.
+
+```r
+library(ggplot2)
+library(patchwork)
+
+# Hierarchical clustering
+hc_row <- hclust(dist(corr2ref_cl))
+hc_col <- hclust(dist(t(corr2ref_cl)))
+
+# Convert dendrogram branches into ggplot segments
+tree_segments <- function(hc) {
+
+  n <- length(hc$order)
+
+  positions <- numeric(n)
+  positions[hc$order] <- seq_len(n)
+
+  centers <- heights <- numeric(n - 1)
+  segments <- list()
+
+  for (i in seq_len(n - 1)) {
+
+    children <- hc$merge[i, ]
+
+    x <- sapply(children, function(j) {
+      if (j < 0) positions[-j] else centers[j]
+    })
+
+    y <- sapply(children, function(j) {
+      if (j < 0) 0 else heights[j]
+    })
+
+    centers[i] <- mean(x)
+    heights[i] <- hc$height[i]
+
+    segments[[i]] <- data.frame(
+      x = c(x[1], x[2], x[1]),
+      y = c(y[1], y[2], heights[i]),
+      xend = c(x[1], x[2], x[2]),
+      yend = rep(heights[i], 3)
+    )
+  }
+
+  do.call(rbind, segments)
+}
+
+# Reorder correlation matrix
+mat <- corr2ref_cl[
+  hc_row$order,
+  hc_col$order,
+  drop = FALSE
+]
+
+nr <- nrow(mat)
+nc <- ncol(mat)
+
+# Prepare heatmap data
+heat_data <- expand.grid(
+  row = seq_len(nr),
+  col = seq_len(nc)
+)
+
+heat_data$value <- as.vector(mat)
+
+# Construct heatmap
+p_heat <- ggplot(
+  heat_data,
+  aes(col, nr + 1 - row, fill = value)
+) +
+  geom_tile() +
+  scale_x_continuous(
+    breaks = seq_len(nc),
+    labels = colnames(mat),
+    limits = c(0.5, nc + 0.5),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    breaks = seq_len(nr),
+    labels = rev(rownames(mat)),
+    limits = c(0.5, nr + 0.5),
+    expand = c(0, 0),
+    position = "right"
+  ) +
+  scale_fill_gradientn(
+    colours = c("#0390d7", "#FAF7F2", "#db1d36"),
+    name = "Spearman"
+  ) +
+  labs(x = NULL, y = NULL) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(
+      angle = 90,
+      hjust = 1,
+      vjust = 0.5
+    ),
+    axis.text.y = element_text(hjust = 0),
+    legend.position = "bottom"
+  )
+
+# Column dendrogram
+p_top <- ggplot(tree_segments(hc_col)) +
+  geom_segment(
+    aes(x, y, xend = xend, yend = yend),
+    linewidth = 0.4
+  ) +
+  scale_x_continuous(
+    limits = c(0.5, nc + 0.5),
+    expand = c(0, 0)
+  ) +
+  theme_void()
+
+# Row dendrogram
+p_left <- ggplot(tree_segments(hc_row)) +
+  geom_segment(
+    aes(
+      -y,
+      nr + 1 - x,
+      xend = -yend,
+      yend = nr + 1 - xend
+    ),
+    linewidth = 0.4
+  ) +
+  scale_y_continuous(
+    limits = c(0.5, nr + 0.5),
+    expand = c(0, 0)
+  ) +
+  theme_void()
+
+# Combine heatmap and dendrograms
+options(
+  repr.plot.width = 12,
+  repr.plot.height = 12
+)
+
+wrap_plots(
+  A = p_top,
+  B = p_left,
+  C = p_heat,
+  design = "#A
+            BC",
+  widths = c(1, 9),
+  heights = c(1, 8)
+)
+```
+<img width="1440" height="1440" alt="image" src="https://github.com/user-attachments/assets/738f8da9-8ce1-4165-8340-7dab649b2020" />
+
+#### 5. Identify Candidate Cell Type Annotations
+
+For each DS1 cluster, the reference cell type with the highest Spearman correlation was identified as a potential annotation.
+
+```r
+# Identify closest reference cell types
+best_matches <- data.frame(
+  DS1_cluster = rownames(corr2ref_cl),
+
+  closest_celltype = colnames(corr2ref_cl)[
+    max.col(corr2ref_cl, ties.method = "first")
+  ],
+
+  spearman_rho = apply(
+    corr2ref_cl,
+    1,
+    max,
+    na.rm = TRUE
+  )
+)
+
+# Display candidate annotations
+print(best_matches)
+```
+
+**Results and Interpretation**
+
+Transcriptomic similarity analysis was performed to investigate potential correspondences between DS1 cell populations and annotated reference cell types.
+
+The correlation heatmap provides an overview of the transcriptional relationships between the two datasets.
+
+- **Higher positive correlations:** Indicate greater transcriptomic similarity between DS1 clusters and reference cell types.
+- **Lower correlations:** Suggest more distinct transcriptional profiles.
+- **Hierarchical clustering:** Groups populations with similar correlation patterns.
+
+The reference cell type showing the highest correlation with each DS1 cluster was considered a candidate annotation.
+
+These results can support the interpretation of cellular identities previously inferred from canonical marker expression.
+
+**Note:** Transcriptomic similarity does not establish definitive cell type identity. Candidate annotations should be validated using known marker genes and additional biological evidence.
 
 #### 1.1 Cluster-level Similarity
 <a id="top"></a>
